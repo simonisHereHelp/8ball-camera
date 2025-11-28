@@ -35,7 +35,7 @@
     "typecheck": "tsc --noEmit",
     "clean": "rimraf dist",
     "prepublishOnly": "npm run clean && npm run build",
-    "postinstall": "npm run build"      // 👈 add this here
+    "postinstall": "npm run build"
   },
   "peerDependencies": {
     "react": ">=17 || >=18",
