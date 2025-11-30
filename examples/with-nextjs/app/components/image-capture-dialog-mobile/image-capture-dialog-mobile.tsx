@@ -24,6 +24,9 @@ export function ImageCaptureDialogMobile({
   const [isSaving, setIsSaving] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
   const [cameraError, setCameraError] = useState(false);
+  const [summary, setSummary] = useState("");
+  const [summaryImageUrl, setSummaryImageUrl] = useState<string | null>(null);
+  const [error, setError] = useState("");
 
   const cameraRef = useRef<WebCameraHandler>(null);
 
@@ -54,12 +57,28 @@ export function ImageCaptureDialogMobile({
         }, 3000);
       });
 
-      setImages([]);
-      onOpenChange?.();
+      const latestImage = files[files.length - 1];
+      const formData = new FormData();
+      formData.append("image", latestImage);
+
+      const response = await fetch("/api/summarize", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || "Failed to summarize image.");
+      }
+
+      const data = (await response.json()) as { summary?: string };
+      setSummary(data.summary || "");
+      setSummaryImageUrl(images[images.length - 1].url);
+
     } catch (error) {
       console.error("Failed to save images:", error);
-      // You could add an error state here to show an alert to the user.
-    } finally {
+      setError("Unable to summarize the captured image. Please try again.");
+        } finally {
       setIsSaving(false);
     }
   };
@@ -79,6 +98,9 @@ export function ImageCaptureDialogMobile({
       }
     }
     setImages([]);
+    setSummary("");
+    setSummaryImageUrl(null);
+    setError("");
     onOpenChange?.();
   };
 
@@ -91,6 +113,9 @@ export function ImageCaptureDialogMobile({
       const file = await cameraRef.current.capture();
       if (file) {
         const url = URL.createObjectURL(file);
+        setSummaryImageUrl(null);
+        setSummary("");
+        setError("");
         setImages((prev) => [...prev, { url, file }]);
       }
     } catch (error) {
@@ -217,17 +242,44 @@ export function ImageCaptureDialogMobile({
                 {isSaving ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Saving...
+                    Saving + Summarizing...
                   </>
                 ) : (
                   <>
                     <Save className="w-4 h-4 mr-2" />
-                    Save {images.length > 0 && `(${images.length})`}
+                    Summarize
                   </>
                 )}
               </Button>
             </div>
           </div>
+
+          {(summary || error) && (
+            <div className="px-4 pb-4 text-left space-y-2">
+              {summary && (
+                <div className="p-3 rounded-xl bg-white/10 border border-white/20 text-white space-y-3">
+                  <div className="flex items-center gap-3">
+                    {summaryImageUrl && (
+                      <div className="w-16 h-16 rounded-lg overflow-hidden border border-white/30 flex-shrink-0">
+                        <img
+                          src={summaryImageUrl}
+                          alt="Summary reference"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
+                    <div>
+                      <h4 className="text-sm font-semibold">Summary</h4>
+                      <p className="text-xs text-white/70">Latest captured image</p>
+                    </div>
+                  </div>
+                  <p className="text-sm whitespace-pre-wrap leading-relaxed">{summary}</p>
+                </div>
+              )}
+              {error && <p className="text-sm text-red-300">{error}</p>}
+            </div>
+          )}
+
           {/* Gallery Modal */}
           {showGallery && (
             <div className="absolute inset-0 bg-black/90 backdrop-blur-sm z-50 sm:rounded-[2rem] flex flex-col">

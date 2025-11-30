@@ -45,9 +45,7 @@ function Content() {
             React Web Camera
           </h1>
           <p className="text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
-            Experience seamless image capture with our responsive camera
-            component. Optimized for both desktop and mobile devices with
-            intelligent UI adaptation.
+            文件狗--docu sniff.
           </p>
         </div>
 
