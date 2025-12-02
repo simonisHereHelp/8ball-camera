@@ -4,6 +4,8 @@ import { Camera, CameraOff, Loader2, RefreshCcw, Save, X } from "lucide-react";
 import { useRef, useState } from "react";
 import WebCamera from "@shivantra/react-web-camera";
 import type { FacingMode, WebCameraHandler } from "@shivantra/react-web-camera";
+import { handleSave } from "@/lib/handleSave"
+import { handleSummary } from "@/lib/handleSummary"
 
 import { Button, Dialog, DialogContent, DialogTitle } from "@/ui/components";
 
@@ -39,81 +41,6 @@ export function ImageCaptureDialogMobile({
     setImages((prev) => prev.filter((_, i) => i !== index));
   };
 
-
-  const handleSave = async () => {
-    if (images.length === 0) return;
-    setIsSaving(true);
-    try {
-      const files = images.map((image) => image.file);
-
-      // This Promise simulates a network request, like an API call to upload the files.
-      // Replace this with your actual save logic (e.g., using fetch or axios).
-      await new Promise<void>((resolve) => {
-        setTimeout(() => {
-          console.log("Saved files:", files);
-          resolve();
-        }, 3000);
-      });
-
-      const latestImage = files[files.length - 1];
-      const formData = new FormData();
-      formData.append("image", latestImage);
-    } catch (error) {
-      console.error("Failed to save images:", error);
-      // You could add an error state here to show an alert to the user.
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleSummary = async () => {
-    if (images.length === 0) return;
-    setIsSaving(true);
-    setError("");
-    try {
-      const files = images.map((image) => image.file);
-
-      // This Promise simulates a network request, like an API call to upload the files.
-      // Replace this with your actual save logic (e.g., using fetch or axios).
-      await new Promise<void>((resolve) => {
-        setTimeout(() => {
-          console.log("Saved files:", files);
-          resolve();
-        }, 3000);
-      });
-
-      const latestImage = files[files.length - 1];
-      const formData = new FormData();
-      formData.append("image", latestImage);
-
-      const response = await fetch("/api/summarize", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const message = await response.text();
-        throw new Error(message || "Failed to summarize image.");
-      }
-
-      const data = (await response.json()) as { summary?: string };
-
-      // Take only the first 800 characters
-      const summaryText = (data.summary || "").slice(0, 800);
-
-      setSummary(summaryText);
-      setSummaryImageUrl(images[images.length - 1].url);
-      setShowSummaryOverlay(true);
-    } catch (error) {
-      console.error("Failed to save images:", error);
-      setSummary("");
-      setSummaryImageUrl(null);
-      setError("Unable to summarize the captured image. Please try again.");
-      setShowSummaryOverlay(false);
-    } finally {
-      setIsSaving(false);
-    }
-  };
 
   /**
    * Handles the dialog close action. It prompts the user for confirmation
@@ -276,7 +203,16 @@ export function ImageCaptureDialogMobile({
               </Button>
               <Button
                 variant="default"
-                onClick={handleSummary}
+                onClick={() =>
+                    handleSummary({
+                    images,
+                    setIsSaving,
+                    setSummary,
+                    setSummaryImageUrl,
+                    setShowSummaryOverlay,
+                    setError,
+                  })
+                }
                 disabled={isSaving || images.length === 0}
                 className="flex-1 bg-blue-400 hover:bg-blue-300 text-white cursor-pointer"
               >
@@ -400,7 +336,10 @@ export function ImageCaptureDialogMobile({
                   <Button
                     onClick={() => {
                       setShowGallery(false);
-                      handleSave();
+                      handleSave({
+                      images,
+                      setIsSaving,
+                    });
                     }}
                     disabled={images.length === 0 || isSaving}
                     className="flex-1 bg-primary hover:bg-primary text-white"
