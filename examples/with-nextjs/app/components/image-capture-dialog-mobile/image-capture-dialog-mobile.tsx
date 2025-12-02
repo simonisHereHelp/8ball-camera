@@ -17,7 +17,7 @@ export function ImageCaptureDialogMobile({
   onOpenChange,
 }: {
   open: boolean;
-  onOpenChange: () => void;
+  onOpenChange?: (open: boolean) => void;
 }) {
   const [images, setImages] = useState<Image[]>([]);
   const [facingMode, setFacingMode] = useState<FacingMode>("environment");
@@ -27,6 +27,7 @@ export function ImageCaptureDialogMobile({
   const [summary, setSummary] = useState("");
   const [summaryImageUrl, setSummaryImageUrl] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [showSummaryOverlay, setShowSummaryOverlay] = useState(false);
 
   const cameraRef = useRef<WebCameraHandler>(null);
 
@@ -39,12 +40,13 @@ export function ImageCaptureDialogMobile({
   };
 
   /**
-   * Handles the save operation. It simulates an asynchronous upload process.
-   * In a real application, this is where you would perform an API call.
+   * Handles the save operation. It uploads the latest image to /api/summarize,
+   * then displays the first 800 characters of the summary in an overlay.
    */
   const handleSave = async () => {
     if (images.length === 0) return;
     setIsSaving(true);
+    setError("");
     try {
       const files = images.map((image) => image.file);
 
@@ -72,13 +74,20 @@ export function ImageCaptureDialogMobile({
       }
 
       const data = (await response.json()) as { summary?: string };
-      setSummary(data.summary || "");
-      setSummaryImageUrl(images[images.length - 1].url);
 
+      // Take only the first 800 characters
+      const summaryText = (data.summary || "").slice(0, 800);
+
+      setSummary(summaryText);
+      setSummaryImageUrl(images[images.length - 1].url);
+      setShowSummaryOverlay(true);
     } catch (error) {
       console.error("Failed to save images:", error);
+      setSummary("");
+      setSummaryImageUrl(null);
       setError("Unable to summarize the captured image. Please try again.");
-        } finally {
+      setShowSummaryOverlay(false);
+    } finally {
       setIsSaving(false);
     }
   };
@@ -101,7 +110,8 @@ export function ImageCaptureDialogMobile({
     setSummary("");
     setSummaryImageUrl(null);
     setError("");
-    onOpenChange?.();
+    setShowSummaryOverlay(false);
+    onOpenChange?.(false);
   };
 
   /**
@@ -116,6 +126,7 @@ export function ImageCaptureDialogMobile({
         setSummaryImageUrl(null);
         setSummary("");
         setError("");
+        setShowGallery(false);
         setImages((prev) => [...prev, { url, file }]);
       }
     } catch (error) {
@@ -135,6 +146,13 @@ export function ImageCaptureDialogMobile({
     } catch (error) {
       console.error("Camera switch error:", error);
     }
+  };
+
+  /**
+   * Dismisses the summary overlay layer.
+   */
+  const handleDismissSummary = () => {
+    setShowSummaryOverlay(false);
   };
 
   return (
@@ -192,7 +210,7 @@ export function ImageCaptureDialogMobile({
                       )}
                     </button>
                   ) : (
-                    <div className="w-full h-full rounded-2xl border-2 border-white/20 bg-black/20 backdrop-blur-sm"></div>
+                    <div className="w-full h-full rounded-2xl border-2 border-white/20 bg-black/20 backdrop-blur-sm" />
                   )}
                 </div>
 
@@ -236,7 +254,7 @@ export function ImageCaptureDialogMobile({
               <Button
                 variant="default"
                 onClick={handleSave}
-                disabled={isSaving}
+                disabled={isSaving || images.length === 0}
                 className="flex-1 bg-blue-400 hover:bg-blue-300 text-white cursor-pointer"
               >
                 {isSaving ? (
@@ -254,13 +272,21 @@ export function ImageCaptureDialogMobile({
             </div>
           </div>
 
-          {(summary || error) && (
-            <div className="px-4 pb-4 text-left space-y-2">
-              {summary && (
-                <div className="p-3 rounded-xl bg-white/10 border border-white/20 text-white space-y-3">
-                  <div className="flex items-center gap-3">
+          {/* Error message (optional, separate from overlay) */}
+          {error && (
+            <div className="px-4 pb-4">
+              <p className="text-sm text-red-300">{error}</p>
+            </div>
+          )}
+
+          {/* Summary Overlay Layer */}
+          {showSummaryOverlay && summary && (
+            <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
+              <div className="w-full max-w-md max-h-[70%] rounded-2xl bg-black/80 border border-blue-400/60 shadow-2xl p-4 overflow-y-auto">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-3 pr-6">
                     {summaryImageUrl && (
-                      <div className="w-16 h-16 rounded-lg overflow-hidden border border-white/30 flex-shrink-0">
+                      <div className="w-12 h-12 rounded-lg overflow-hidden border border-blue-300/60 flex-shrink-0">
                         <img
                           src={summaryImageUrl}
                           alt="Summary reference"
@@ -269,20 +295,33 @@ export function ImageCaptureDialogMobile({
                       </div>
                     )}
                     <div>
-                      <h4 className="text-sm font-semibold">Summary</h4>
-                      <p className="text-xs text-white/70">Latest captured image</p>
+                      <h3 className="text-sm font-semibold text-blue-300 drop-shadow">
+                        Summary
+                      </h3>
+                      <p className="text-xs text-blue-200/80 drop-shadow">
+                        First 800 characters
+                      </p>
                     </div>
                   </div>
-                  <p className="text-sm whitespace-pre-wrap leading-relaxed">{summary}</p>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleDismissSummary}
+                    className="text-blue-200 hover:bg-white/10 rounded-full"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
                 </div>
-              )}
-              {error && <p className="text-sm text-red-300">{error}</p>}
+                <p className="text-sm text-blue-200 whitespace-pre-wrap leading-relaxed drop-shadow">
+                  {summary}
+                </p>
+              </div>
             </div>
           )}
 
           {/* Gallery Modal */}
           {showGallery && (
-            <div className="absolute inset-0 bg-black/90 backdrop-blur-sm z-50 sm:rounded-[2rem] flex flex-col">
+            <div className="absolute inset-0 bg-black/90 backdrop-blur-sm z-40 sm:rounded-[2rem] flex flex-col">
               {/* Gallery Header */}
               <div className="flex items-center justify-between p-4 border-b border-white/20">
                 <h3 className="text-white text-lg font-semibold">
@@ -340,7 +379,7 @@ export function ImageCaptureDialogMobile({
                       setShowGallery(false);
                       handleSave();
                     }}
-                    disabled={images.length === 0}
+                    disabled={images.length === 0 || isSaving}
                     className="flex-1 bg-primary hover:bg-primary text-white"
                   >
                     Save All
