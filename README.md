@@ -21,6 +21,21 @@ A lightweight and flexible React component for capturing images from the user’
 
 ---
 
+## Remote prompts
+
+The `/api/summarize` route expects a `prompts.json` file hosted at a reachable URL (for example, a Google Drive "anyone with the link" file). Set `PROMPTS_URL` to the download URL and deploy. The JSON should include the following fields:
+
+```json
+{
+  "system": "You are a meticulous document reader...",
+  "user": "Summarize the document content in about {{wordTarget}} words...",
+  "wordTarget": 120
+}
+```
+
+An example file lives at `prompts.example.json`. Copy it to Google Drive, share it publicly, and set `PROMPTS_URL` accordingly. If the URL cannot be fetched at runtime, the API falls back to a built-in summarization prompt.
+
+
 ## Why?
 
 Capturing multiple images from a webcam is a common need in modern web apps, especially Progressive Web Apps (PWAs).
