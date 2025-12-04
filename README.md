@@ -20,6 +20,8 @@ A lightweight and flexible React component for capturing images from the user’
 - [Contact](#contact-)
 
 ---
+## Google 認證成功 （Dec 4, 2025)
+--使用next-auth, 關鍵 auth.js + content.tsx
 
 ## Remote prompts (Dec 3. 2025 接下來要 nextauth)
 

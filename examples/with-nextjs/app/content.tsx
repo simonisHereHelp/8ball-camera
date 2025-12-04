@@ -57,8 +57,8 @@ function Content() {
 
           {/* simple auth indicator + login button */}
           <p className="text-sm text-slate-600 dark:text-slate-400 mt-2">
-            Google Authenticated:{" "}
-            {status === "loading" ? "checking..." : isAuthenticated ? "true" : "false"}
+            G 認證:{" "}
+            {status === "loading" ? "checking..." : isAuthenticated ? "✓" : "❌"}
           </p>
 
           {!isAuthenticated && (
