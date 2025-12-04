@@ -48,16 +48,11 @@ function Content() {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full mb-6">
             <Camera className="w-8 h-8 text-blue-600 dark:text-blue-400" />
           </div>
-          <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-4">
-            React Web Camera
+          <h1 className="text-4xl font-bold text-slate-800 dark:text-slate-100 mb-4">
+            文件狗 DocuSniff
           </h1>
           <p className="text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
-            文件狗--docu sniff(待NextAuth).
-          </p>
-
-          {/* simple auth indicator + login button */}
-          <p className="text-sm text-slate-600 dark:text-slate-400 mt-2">
-            G 認證:{" "}
+            Google Login(登錄):{" "}
             {status === "loading" ? "checking..." : isAuthenticated ? "✓" : "❌"}
           </p>
 
