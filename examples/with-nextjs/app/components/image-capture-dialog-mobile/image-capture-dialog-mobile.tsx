@@ -347,10 +347,16 @@ export function ImageCaptureDialogMobile({
                   <Button
                     onClick={() => {
                       if (!ensureGoogleAuthenticated("saving")) return;
+                      if (!summary.trim()) {
+                        setError("Please summarize before saving.");
+                        return;
+                      }
                       setShowGallery(false);
                       handleSave({
                       images,
+                      summary,
                       setIsSaving,
+                      onError: setError,
                     });
                     }}
                     disabled={images.length === 0 || isSaving}
