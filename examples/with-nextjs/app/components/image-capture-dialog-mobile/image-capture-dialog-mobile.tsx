@@ -105,6 +105,15 @@ export function ImageCaptureDialogMobile({
     setShowSummaryOverlay(false);
   };
 
+    const ensureGoogleAuthenticated = (action: string) => {
+    if (!googleAuthenticated) {
+      setError(`Please log in to Google before ${action}.`);
+      return false;
+    }
+    setError("");
+    return true;
+  };
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogTitle />
@@ -335,6 +344,7 @@ export function ImageCaptureDialogMobile({
                   </Button>
                   <Button
                     onClick={() => {
+                      if (!ensureGoogleAuthenticated("saving")) return;
                       setShowGallery(false);
                       handleSave({
                       images,

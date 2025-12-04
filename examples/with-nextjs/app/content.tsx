@@ -1,7 +1,9 @@
+// app/content.tsx
 "use client";
 
 import { useState, useEffect } from "react";
 import { Camera } from "lucide-react";
+import { useSession, signIn } from "next-auth/react";
 
 import { Button } from "@/ui/components";
 import {
@@ -16,7 +18,6 @@ function useIsMobile() {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
 
     checkMobile();
-
     window.addEventListener("resize", checkMobile);
 
     return () => window.removeEventListener("resize", checkMobile);
@@ -27,11 +28,18 @@ function useIsMobile() {
 
 function Content() {
   const [open, setOpen] = useState(false);
-
   const isMobile = useIsMobile();
+
+  const { status } = useSession();
+  const isAuthenticated = status === "authenticated";
 
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
+
+  const handleGoogleLogin = () => {
+    // NextAuth will handle redirects and come back to "/"
+    signIn("google", { callbackUrl: "/" });
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
@@ -47,6 +55,21 @@ function Content() {
           <p className="text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
             文件狗--docu sniff(待NextAuth).
           </p>
+
+          {/* simple auth indicator + login button */}
+          <p className="text-sm text-slate-600 dark:text-slate-400 mt-2">
+            Google Authenticated:{" "}
+            {status === "loading" ? "checking..." : isAuthenticated ? "true" : "false"}
+          </p>
+
+          {!isAuthenticated && (
+            <Button
+              onClick={handleGoogleLogin}
+              className="mt-4 bg-green-600 hover:bg-green-700 text-white"
+            >
+              Google Login
+            </Button>
+          )}
         </div>
 
         {/* Main Content */}
@@ -73,9 +96,17 @@ function Content() {
       </div>
 
       {isMobile ? (
-        <ImageCaptureDialogMobile open={open} onOpenChange={handleClose} />
+        <ImageCaptureDialogMobile
+          open={open}
+          onOpenChange={handleClose}
+          googleAuthenticated={isAuthenticated}
+        />
       ) : (
-        <ImageCaptureDialogDesktop open={open} onOpenChange={handleClose} />
+        <ImageCaptureDialogDesktop
+          open={open}
+          onOpenChange={handleClose}
+          googleAuthenticated={isAuthenticated}
+        />
       )}
     </div>
   );
