@@ -45,7 +45,7 @@ function Content() {
             React Web Camera
           </h1>
           <p className="text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
-            文件狗--docu sniff.
+            文件狗--docu sniff(待NextAuth).
           </p>
         </div>
 

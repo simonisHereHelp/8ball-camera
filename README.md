@@ -21,7 +21,7 @@ A lightweight and flexible React component for capturing images from the user’
 
 ---
 
-## Remote prompts
+## Remote prompts (Dec 3. 2025 接下來要 nextauth)
 
 The `/api/summarize` route expects a `prompts.json` file hosted at a reachable URL (for example, a Google Drive "anyone with the link" file). Set `PROMPTS_URL` to the download URL and deploy. The JSON should include the following fields:
 
