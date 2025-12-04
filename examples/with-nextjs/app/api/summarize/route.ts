@@ -62,30 +62,23 @@ export async function POST(request: Request) {
 
   const formData = await request.formData();
 
+  // 🔹 all "image" files (multiple)
   const imageFiles = formData
     .getAll("image")
     .filter((item): item is File => item instanceof File);
 
-  const imageUrlStrings = formData
-    .getAll("imageUrl")
-    .filter(
-      (item): item is string =>
-        typeof item === "string" && item.trim().length > 0,
-    )
-    .map((url) => url.trim());
-
-  if (imageFiles.length === 0 && imageUrlStrings.length === 0) {
+  if (imageFiles.length === 0) {
     return NextResponse.json(
-      { error: "At least one image file or imageUrl is required." },
+      { error: "At least one image file is required." },
       { status: 400 },
     );
   }
 
-  let allImageUrls: string[] = [];
+  let allImageUrls: string[];
 
   try {
     // Files → data URLs
-    const fileImageUrls = await Promise.all(
+    allImageUrls = await Promise.all(
       imageFiles.map(async (file) => {
         const arrayBuffer = await file.arrayBuffer();
         const base64Image = Buffer.from(arrayBuffer).toString("base64");
@@ -93,28 +86,6 @@ export async function POST(request: Request) {
         return `data:${mimeType};base64,${base64Image}`;
       }),
     );
-
-    // Remote URLs → data URLs
-    const remoteImageUrls = await Promise.all(
-      imageUrlStrings.map(async (url) => {
-        // if already data URL, just keep it
-        if (url.startsWith("data:")) return url;
-
-        const response = await fetch(url);
-        if (!response.ok) {
-          throw new Error(`Failed to fetch remote image: ${response.status}`);
-        }
-
-        const contentType =
-          response.headers.get("content-type") ?? "application/octet-stream";
-        const arrayBuffer = await response.arrayBuffer();
-        const base64Image = Buffer.from(arrayBuffer).toString("base64");
-
-        return `data:${contentType};base64,${base64Image}`;
-      }),
-    );
-
-    allImageUrls = [...fileImageUrls, ...remoteImageUrls];
   } catch (error) {
     console.error("Failed to process images:", error);
     return NextResponse.json(
@@ -160,7 +131,7 @@ export async function POST(request: Request) {
         },
         {
           role: "user",
-          content, // ← use multimodal content (text + many images)
+          content, // text + ALL images
         },
       ],
       max_tokens: 400,
