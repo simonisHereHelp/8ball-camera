@@ -4,6 +4,7 @@ import { Camera, CameraOff, Loader2, RefreshCcw, Save, X } from "lucide-react";
 import { useRef, useState } from "react";
 import WebCamera from "@shivantra/react-web-camera";
 import type { FacingMode, WebCameraHandler } from "@shivantra/react-web-camera";
+import { useSession } from "next-auth/react";
 import { handleSave } from "@/lib/handleSave"
 import { handleSummary } from "@/lib/handleSummary"
 
@@ -17,11 +18,9 @@ interface Image {
 export function ImageCaptureDialogMobile({
   open,
   onOpenChange,
-  googleAuthenticated = false,
 }: {
   open: boolean;
   onOpenChange?: (open: boolean) => void;
-  googleAuthenticated?: boolean;
 }) {
   const [images, setImages] = useState<Image[]>([]);
   const [facingMode, setFacingMode] = useState<FacingMode>("environment");
@@ -34,7 +33,7 @@ export function ImageCaptureDialogMobile({
   const [showSummaryOverlay, setShowSummaryOverlay] = useState(false);
 
   const cameraRef = useRef<WebCameraHandler>(null);
-
+  const { data: session } = useSession();
   /**
    * Removes an image from the gallery based on its index.
    * @param index The index of the image to be deleted.
@@ -105,15 +104,6 @@ export function ImageCaptureDialogMobile({
    */
   const handleDismissSummary = () => {
     setShowSummaryOverlay(false);
-  };
-
-    const ensureGoogleAuthenticated = (action: string) => {
-    if (!googleAuthenticated) {
-      setError(`Please log in to Google before ${action}.`);
-      return false;
-    }
-    setError("");
-    return true;
   };
 
   return (
@@ -346,7 +336,7 @@ export function ImageCaptureDialogMobile({
                   </Button>
                   <Button
                     onClick={() => {
-                      if (!ensureGoogleAuthenticated("saving")) return;
+                      if (!session) return;
                       if (!summary.trim()) {
                         setError("Please summarize before saving.");
                         return;

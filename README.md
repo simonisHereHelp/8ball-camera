@@ -2,22 +2,9 @@
 
 A lightweight and flexible React component for capturing images from the user’s camera (front or back) with support for `jpeg`, `png`, and `webp` formats. Built with modern React (`hooks` + `forwardRef`) and works on both desktop and mobile browsers.
 
-## Table of Contents
-
-- [Why?](#why-)
-- [Our Solution](#our-solution-)
-- [Features](#features-)
-- [Installation](#installation-)
-- [Usage](#usage-)
-  - [Basic Example](#basic-example)
-  - [Vite.js Example](#vitejs-example)
-  - [Next.js Example (App Router)](#nextjs-example-app-router)
-  - [PWA Example](#pwa-example)
-- [Props](#props-%EF%B8%8F)
-- [Ref Methods](#ref-methods-)
-- [Notes](#notes-%EF%B8%8F)
-- [License](#license-)
-- [Contact](#contact-)
+# NextAuth + Google
+https://refine.dev/blog/nextauth-google-github-authentication-nextjs/#introduction
+Cloud Console Project: 8ball-2
 
 ---
 ## Auth Client setup

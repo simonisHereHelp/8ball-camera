@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react";
 import { Camera } from "lucide-react";
-import { useSession, signIn } from "next-auth/react";
+import { useSession, signIn, signOut } from "next-auth/react";
 
 import { Button } from "@/ui/components";
 import {
@@ -29,16 +29,10 @@ function Content() {
   const [open, setOpen] = useState(false);
   const isMobile = useIsMobile();
 
-  const { status } = useSession();
-  const isAuthenticated = status === "authenticated";
+  const { data: session } = useSession();
 
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
-
-  const handleGoogleLogin = () => {
-    // NextAuth will handle redirects and come back to "/"
-    signIn("google", { callbackUrl: "/" });
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
@@ -52,18 +46,23 @@ function Content() {
             文件狗 DocuSniff
           </h1>
           <p className="text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
-            Google Login(登錄):{" "}
-            {status === "loading" ? "checking..." : isAuthenticated ? "✓" : "❌"}
+            Google Login(登錄): {session ? "✓" : "❌"}
           </p>
-
-          {!isAuthenticated && (
-            <Button
-              onClick={handleGoogleLogin}
-              className="mt-4 bg-green-600 hover:bg-green-700 text-white"
-            >
-              Google Login
-            </Button>
-          )}
+            {!session ? (
+              <Button
+                onClick={() => signIn("google")}
+                className="mt-4 bg-green-600 hover:bg-green-700 text-white"
+              >
+                Login
+              </Button>
+            ) : (
+              <Button
+                onClick={() => signOut()}
+                className="mt-4 bg-red-600 hover:bg-red-700 text-white"
+              >
+                Logout
+              </Button>
+            )}
         </div>
 
         {/* Main Content */}
@@ -93,13 +92,11 @@ function Content() {
         <ImageCaptureDialogMobile
           open={open}
           onOpenChange={handleClose}
-          googleAuthenticated={isAuthenticated}
         />
       ) : (
         <ImageCaptureDialogMobile
           open={open}
           onOpenChange={handleClose}
-          googleAuthenticated={isAuthenticated}
         />
       )}
     </div>
