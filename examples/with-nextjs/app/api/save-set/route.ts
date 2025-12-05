@@ -1,7 +1,74 @@
 import { NextResponse } from "next/server";
 
 const DRIVE_UPLOAD_URL =
-  "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart";
+  "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink,webContentLink";
+
+function buildMultipartBody(
+  boundary: string,
+  metadata: Record<string, unknown>,
+  fileBuffer: Buffer,
+  mimeType: string,
+) {
+  const delimiter = `\r\n--${boundary}\r\n`;
+  const closeDelimiter = `\r\n--${boundary}--`;
+
+  const metaPart =
+    delimiter +
+    "Content-Type: application/json; charset=UTF-8\r\n\r\n" +
+    JSON.stringify(metadata);
+
+  const filePartHeader =
+    delimiter +
+    `Content-Type: ${mimeType || "application/octet-stream"}\r\n\r\n`;
+
+  const endPart = closeDelimiter;
+
+  return Buffer.concat([
+    Buffer.from(metaPart, "utf8"),
+    Buffer.from(filePartHeader, "utf8"),
+    fileBuffer,
+    Buffer.from(endPart, "utf8"),
+  ]);
+}
+
+async function uploadToDrive({
+  accessToken,
+  folderId,
+  name,
+  buffer,
+  mimeType,
+}: {
+  accessToken: string;
+  folderId: string;
+  name: string;
+  buffer: Buffer;
+  mimeType: string;
+}) {
+  const boundary = "drive-boundary-" + Date.now() + Math.random().toString(16);
+  const metadata = {
+    name,
+    parents: [folderId],
+  };
+
+  const body = buildMultipartBody(boundary, metadata, buffer, mimeType);
+
+  const res = await fetch(DRIVE_UPLOAD_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": `multipart/related; boundary=${boundary}`,
+    },
+    body,
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    console.error("Drive upload failed", res.status, text);
+    throw new Error("Drive upload failed: " + text);
+  }
+
+  return res.json();
+}
 
 function deriveSetName(summary: string) {
   const trimmed = summary.trim();
@@ -23,38 +90,11 @@ function deriveSetName(summary: string) {
   return `${titlePart || "document"}-${datePart}`;
 }
 
-async function uploadToDrive(file: File, folderId: string, token: string) {
-  const metadata = {
-    name: file.name,
-    parents: [folderId],
-  };
-
-  const formData = new FormData();
-  formData.append(
-    "metadata",
-    new Blob([JSON.stringify(metadata)], { type: "application/json" }),
-  );
-  formData.append("file", file);
-
-  const response = await fetch(DRIVE_UPLOAD_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-    body: formData,
-  });
-
-  if (!response.ok) {
-    const message = await response.text();
-    throw new Error(message || "Failed to upload to Google Drive");
-  }
-}
-
 export async function POST(request: Request) {
-  const apiKey = process.env.GOOGLE_DRIVE_API_KEY;
+  const accessToken = process.env.GOOGLE_DRIVE_API_KEY;
   const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
 
-  if (!apiKey || !folderId) {
+  if (!accessToken || !folderId) {
     return NextResponse.json(
       { error: "Missing Google Drive configuration." },
       { status: 500 },
@@ -92,12 +132,14 @@ export async function POST(request: Request) {
         ? file.name
         : `${setName}.${extension ?? "dat"}`;
 
-      const normalizedFile = new File([file], baseName, {
-        type: file.type,
-        lastModified: file.lastModified,
+      const buffer = Buffer.from(await file.arrayBuffer());
+      await uploadToDrive({
+        accessToken,
+        folderId,
+        name: baseName,
+        buffer,
+        mimeType: file.type,
       });
-
-      await uploadToDrive(normalizedFile, folderId, apiKey);
     }
 
     return NextResponse.json({ setName });
