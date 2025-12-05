@@ -1,3 +1,4 @@
+// app/api/save-set/route.ts
 import { NextResponse } from "next/server";
 
 const DRIVE_UPLOAD_URL =
@@ -55,7 +56,7 @@ async function uploadToDrive({
   const res = await fetch(DRIVE_UPLOAD_URL, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${accessToken}`,
+      Authorization: `Bearer ${accessToken}`, // <-- real OAuth access token
       "Content-Type": `multipart/related; boundary=${boundary}`,
     },
     body,
@@ -91,10 +92,9 @@ function deriveSetName(summary: string) {
 }
 
 export async function POST(request: Request) {
-  const accessToken = process.env.GOOGLE_DRIVE_API_KEY;
   const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
 
-  if (!accessToken || !folderId) {
+  if (!folderId) {
     return NextResponse.json(
       { error: "Missing Google Drive configuration." },
       { status: 500 },
@@ -102,6 +102,18 @@ export async function POST(request: Request) {
   }
 
   const formData = await request.formData();
+
+  // 🔑 accessToken is sent from the client (taken from NextAuth session.accessToken)
+  const accessToken =
+    (formData.get("accessToken") as string | null)?.trim() ?? "";
+
+  if (!accessToken) {
+    return NextResponse.json(
+      { error: "Missing Google Drive access token." },
+      { status: 401 },
+    );
+  }
+
   const summary = (formData.get("summary") as string | null)?.trim() ?? "";
   const setNameFromClient =
     (formData.get("setName") as string | null)?.trim() ?? "";
