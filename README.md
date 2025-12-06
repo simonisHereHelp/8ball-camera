@@ -2,7 +2,9 @@
 
 A lightweight and flexible React component for capturing images from the user’s camera (front or back) with support for `jpeg`, `png`, and `webp` formats. Built with modern React (`hooks` + `forwardRef`) and works on both desktop and mobile browsers.
 
-# NextAuth + Google
+## 成功上傳
+![alt text](./examples/with-nextjs/local_stuff/successUpload.png)
+## 成功 NextAuth + Google登錄
 https://refine.dev/blog/nextauth-google-github-authentication-nextjs/#introduction
 Cloud Console Project: 8ball-2
 ```
@@ -10,7 +12,7 @@ Cloud Console Project: 8ball-2
 ```
 ---
 ## Auth Client setup
-![alt text](image.png)
+![alt text](./examples/with-nextjs/local_stuff/successAuth.png)
 ## MileStone （Dec 4, 2025)
 --12/04- multiple images+text for ONE GPT completion
 --12/04- 使用next-auth, 關鍵 auth.js + content.tsx
