@@ -30,6 +30,7 @@ export function ImageCaptureDialogMobile({
   const [summary, setSummary] = useState("");
   const [summaryImageUrl, setSummaryImageUrl] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [saveMessage, setSaveMessage] = useState(""); // 👈 new
   const [showSummaryOverlay, setShowSummaryOverlay] = useState(false);
 
   const cameraRef = useRef<WebCameraHandler>(null);
@@ -239,6 +240,13 @@ export function ImageCaptureDialogMobile({
             </div>
           )}
 
+          {/* ✅ Save success message */}
+          {saveMessage && (
+            <div className="px-4 pb-4">
+              <p className="text-sm text-emerald-300">{saveMessage}</p>
+            </div>
+          )}
+
           {/* Summary Overlay Layer */}
           {showSummaryOverlay && summary && (
             <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
@@ -342,11 +350,18 @@ export function ImageCaptureDialogMobile({
                         return;
                       }
                       setShowGallery(false);
+                      setSaveMessage(""); // reset previous success
+
                       handleSave({
                       images,
                       summary,
                       setIsSaving,
                       onError: setError,
+                            onSuccess: (setName) => {
+                            setSaveMessage(`Saved to Google Drive as "${setName}". ✅`);
+                            // optional: clear images after successful save
+                            setImages([]);
+                          },
                     });
                     }}
                     disabled={images.length === 0 || isSaving}

@@ -33,11 +33,13 @@ export const handleSave = async ({
   summary,
   setIsSaving,
   onError,
+  onSuccess,
 }: {
   images: Image[];
   summary: string;
   setIsSaving: (isSaving: boolean) => void;
   onError?: (message: string) => void;
+  onSuccess?: (setName: string) => void;   // 👈 new
 }) => {
   if (images.length === 0) return;
 
@@ -89,6 +91,14 @@ export const handleSave = async ({
       const message = await response.text();
       throw new Error(message || "Failed to save files to Google Drive.");
     }
+
+        const json = (await response.json().catch(() => null)) as
+      | { setName?: string }
+      | null;
+
+    // 🔔 success callback (UI will react)
+    onSuccess?.(json?.setName || setName);
+
   } catch (error) {
     console.error("Failed to save images:", error);
     onError?.("Unable to save captured images. Please try again.");
