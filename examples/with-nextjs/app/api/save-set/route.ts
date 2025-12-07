@@ -9,8 +9,7 @@ const DRIVE_UPLOAD_URL =
 
 const PROMPTS_URL =
   process.env.PROMPTS_URL ??
-  // 建議改成 uc?export=download&id=...，目前是 view 版就會走 fallback
-  "https://drive.google.com/file/d/1srQP_Ekw79v45jgkwgeV67wx6j9OcmII/view?usp=drive_link";
+  "https://drive.google.com/uc?export=download&id=1srQP_Ekw79v45jgkwgeV67wx6j9OcmII";
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
