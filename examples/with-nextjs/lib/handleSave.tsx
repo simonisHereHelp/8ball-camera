@@ -5,28 +5,9 @@ export interface Image {
   file: File;
 }
 
-function deriveSetName(summary: string) {
-  const trimmed = summary.trim();
-  const datePart = new Date()
-    .toISOString()
-    .slice(0, 10)
-    .replace(/-/g, "");
-
-  const titlePart = trimmed
-    .replace(/\s+/g, " ")
-    .split(" ")
-    .slice(0, 4)
-    .join("-")
-    .replace(/[^\p{L}\p{N}-]/gu, "")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 40);
-
-  return `${titlePart || "document"}-${datePart}`;
-}
-
 /**
  * Saves the current images + summary via /api/save-set.
+ * The server (via ChatGPT) is responsible for deriving setName.
  */
 export const handleSave = async ({
   images,
@@ -39,9 +20,10 @@ export const handleSave = async ({
   summary: string;
   setIsSaving: (isSaving: boolean) => void;
   onError?: (message: string) => void;
-  onSuccess?: (setName: string) => void;   // 👈 new
+  onSuccess?: (setName: string) => void;
 }) => {
-  if (images.length === 0) return;
+  // nothing to save
+  if (!images.length) return;
 
   const trimmedSummary = summary.trim();
   if (!trimmedSummary) return;
@@ -49,37 +31,22 @@ export const handleSave = async ({
   setIsSaving(true);
 
   try {
-    const setName = deriveSetName(trimmedSummary);
     const formData = new FormData();
 
+    // let the server derive setName from summary
     formData.append("summary", trimmedSummary);
-    formData.append("setName", setName);
 
-    // JSON summary file
+    // summary file — server will rename it to setName.json
     const summaryFile = new File(
       [JSON.stringify({ summary: trimmedSummary }, null, 2)],
-      `${setName}.json`,
+      "summary.json",
       { type: "application/json" },
     );
     formData.append("files", summaryFile);
 
-    // All captured images
-    images.forEach((image, index) => {
-      const extension =
-        image.file.name.split(".").pop() ||
-        image.file.type.split("/")[1] ||
-        "jpg";
-
-      const renamed = new File(
-        [image.file],
-        `${setName}-${index + 1}.${extension}`,
-        {
-          type: image.file.type,
-          lastModified: image.file.lastModified,
-        },
-      );
-
-      formData.append("files", renamed);
+    // all captured images — server will rename to {setName}-pX.ext or similar
+    images.forEach((image) => {
+      formData.append("files", image.file);
     });
 
     const response = await fetch("/api/save-set", {
@@ -92,13 +59,14 @@ export const handleSave = async ({
       throw new Error(message || "Failed to save files to Google Drive.");
     }
 
-        const json = (await response.json().catch(() => null)) as
+    const json = (await response.json().catch(() => null)) as
       | { setName?: string }
       | null;
 
-    // 🔔 success callback (UI will react)
-    onSuccess?.(json?.setName || setName);
-
+    // 🔔 let the UI know the final server-side setName (if provided)
+    if (onSuccess) {
+      onSuccess(json?.setName ?? "");
+    }
   } catch (error) {
     console.error("Failed to save images:", error);
     onError?.("Unable to save captured images. Please try again.");
