@@ -5,8 +5,8 @@ import { useRef, useState } from "react";
 import WebCamera from "@shivantra/react-web-camera";
 import type { FacingMode, WebCameraHandler } from "@shivantra/react-web-camera";
 import { useSession } from "next-auth/react";
-import { handleSave } from "@/lib/handleSave"
-import { handleSummary } from "@/lib/handleSummary"
+import { handleSave } from "@/lib/handleSave";
+import { handleSummary } from "@/lib/handleSummary";
 
 import { Button, Dialog, DialogContent, DialogTitle } from "@/ui/components";
 
@@ -30,29 +30,21 @@ export function ImageCaptureDialogMobile({
   const [summary, setSummary] = useState("");
   const [summaryImageUrl, setSummaryImageUrl] = useState<string | null>(null);
   const [error, setError] = useState("");
-  const [saveMessage, setSaveMessage] = useState(""); // 👈 new
-  const [showSummaryOverlay, setShowSummaryOverlay] = useState(false);
+  const [saveMessage, setSaveMessage] = useState("");
+  const [showSummaryOverlay, setShowSummaryOverlay] = useState(false); // ⚠ still here for handleSummary, but no UI popup
 
   const cameraRef = useRef<WebCameraHandler>(null);
   const { data: session } = useSession();
-  /**
-   * Removes an image from the gallery based on its index.
-   * @param index The index of the image to be deleted.
-   */
+
   const deleteImage = (index: number) => {
     setImages((prev) => prev.filter((_, i) => i !== index));
   };
 
-
-  /**
-   * Handles the dialog close action. It prompts the user for confirmation
-   * if there are unsaved images to prevent data loss.
-   */
   const handleClose = () => {
     if (images.length > 0 && !isSaving) {
       if (
         !window.confirm(
-          "You have unsaved images. Are you sure you want to close?"
+          "You have unsaved images. Are you sure you want to close?",
         )
       ) {
         return;
@@ -62,13 +54,12 @@ export function ImageCaptureDialogMobile({
     setSummary("");
     setSummaryImageUrl(null);
     setError("");
+    setSaveMessage("");
     setShowSummaryOverlay(false);
+    setShowGallery(false);
     onOpenChange?.(false);
   };
 
-  /**
-   * Captures an image from the webcam and adds it to the gallery.
-   */
   const handleCapture = async () => {
     if (!cameraRef.current) return;
     try {
@@ -78,7 +69,9 @@ export function ImageCaptureDialogMobile({
         setSummaryImageUrl(null);
         setSummary("");
         setError("");
+        setSaveMessage("");
         setShowGallery(false);
+        setShowSummaryOverlay(false);
         setImages((prev) => [...prev, { url, file }]);
       }
     } catch (error) {
@@ -86,9 +79,6 @@ export function ImageCaptureDialogMobile({
     }
   };
 
-  /**
-   * Switches the camera between front-facing ('user') and back-facing ('environment').
-   */
   const handleCameraSwitch = async () => {
     if (!cameraRef.current) return;
     try {
@@ -98,13 +88,6 @@ export function ImageCaptureDialogMobile({
     } catch (error) {
       console.error("Camera switch error:", error);
     }
-  };
-
-  /**
-   * Dismisses the summary overlay layer.
-   */
-  const handleDismissSummary = () => {
-    setShowSummaryOverlay(false);
   };
 
   return (
@@ -205,16 +188,20 @@ export function ImageCaptureDialogMobile({
               </Button>
               <Button
                 variant="default"
-                onClick={() =>
-                    handleSummary({
+                onClick={async () => {
+                  await handleSummary({
                     images,
                     setIsSaving,
                     setSummary,
                     setSummaryImageUrl,
-                    setShowSummaryOverlay,
+                    setShowSummaryOverlay, // 👈 unchanged
                     setError,
-                  })
-                }
+                  });
+                  // After summarize finishes, go straight to gallery
+                  if (!error) {
+                    setShowGallery(true);
+                  }
+                }}
                 disabled={isSaving || images.length === 0}
                 className="flex-1 bg-blue-400 hover:bg-blue-300 text-white cursor-pointer"
               >
@@ -233,61 +220,23 @@ export function ImageCaptureDialogMobile({
             </div>
           </div>
 
-          {/* Error message (optional, separate from overlay) */}
+          {/* Error message */}
           {error && (
             <div className="px-4 pb-4">
               <p className="text-sm text-red-300">{error}</p>
             </div>
           )}
 
-          {/* ✅ Save success message */}
+          {/* Save success message */}
           {saveMessage && (
             <div className="px-4 pb-4">
               <p className="text-sm text-emerald-300">{saveMessage}</p>
             </div>
           )}
 
-          {/* Summary Overlay Layer */}
-          {showSummaryOverlay && summary && (
-            <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
-              <div className="w-full max-w-md max-h-[70%] rounded-2xl bg-black/80 border border-blue-400/60 shadow-2xl p-4 overflow-y-auto">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-3 pr-6">
-                    {summaryImageUrl && (
-                      <div className="w-12 h-12 rounded-lg overflow-hidden border border-blue-300/60 flex-shrink-0">
-                        <img
-                          src={summaryImageUrl}
-                          alt="Summary reference"
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    )}
-                    <div>
-                      <h3 className="text-sm font-semibold text-blue-300 drop-shadow">
-                        Summary
-                      </h3>
-                      <p className="text-xs text-blue-200/80 drop-shadow">
-                        First 800 characters
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={handleDismissSummary}
-                    className="text-blue-200 hover:bg-white/10 rounded-full"
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-                <p className="text-sm text-blue-200 whitespace-pre-wrap leading-relaxed drop-shadow">
-                  {summary}
-                </p>
-              </div>
-            </div>
-          )}
+          {/* ⛔ Summary Overlay REMOVED – no popup UI anymore */}
 
-          {/* Gallery Modal */}
+          {/* Gallery Modal (shows photos + summary + save buttons) */}
           {showGallery && (
             <div className="absolute inset-0 bg-black/90 backdrop-blur-sm z-40 sm:rounded-[2rem] flex flex-col">
               {/* Gallery Header */}
@@ -305,8 +254,9 @@ export function ImageCaptureDialogMobile({
                 </Button>
               </div>
 
-              {/* Gallery Grid */}
-              <div className="flex-1 p-4 overflow-y-auto">
+              {/* Gallery Body: grid + summary */}
+              <div className="flex-1 p-4 overflow-y-auto flex flex-col gap-4">
+                {/* Image grid */}
                 <div className="grid grid-cols-2 gap-4">
                   {images.map((image, index) => (
                     <div key={index} className="relative group">
@@ -329,6 +279,18 @@ export function ImageCaptureDialogMobile({
                     </div>
                   ))}
                 </div>
+
+                {/* Summary displayed here */}
+                {summary && (
+                  <div className="mt-2 p-3 rounded-lg bg-white/5 border border-white/10">
+                    <h4 className="text-xs font-semibold text-blue-200 mb-1">
+                      Summary（前 800 字）
+                    </h4>
+                    <p className="text-sm text-blue-100 whitespace-pre-wrap leading-relaxed">
+                      {summary}
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Gallery Footer */}
@@ -350,19 +312,20 @@ export function ImageCaptureDialogMobile({
                         return;
                       }
                       setShowGallery(false);
-                      setSaveMessage(""); // reset previous success
+                      setSaveMessage("");
 
                       handleSave({
-                      images,
-                      summary,
-                      setIsSaving,
-                      onError: setError,
-                            onSuccess: (setName) => {
-                            setSaveMessage(`Saved to Google Drive as "${setName}". ✅`);
-                            // optional: clear images after successful save
-                            setImages([]);
-                          },
-                    });
+                        images,
+                        summary,
+                        setIsSaving,
+                        onError: setError,
+                        onSuccess: (setName) => {
+                          setSaveMessage(
+                            `Saved to Google Drive as "${setName}". ✅`,
+                          );
+                          setImages([]);
+                        },
+                      });
                     }}
                     disabled={images.length === 0 || isSaving}
                     className="flex-1 bg-primary hover:bg-primary text-white"
