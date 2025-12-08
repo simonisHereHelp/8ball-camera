@@ -311,9 +311,9 @@ export function ImageCaptureDialogMobile({
                         summary,
                         setIsSaving,
                         onError: setError,
-                        onSuccess: (setName) => {
+                        onSuccess: (savedSetName) => {
                           setShowGallery(false); // ✅ close AFTER upload success
-                          setSaveMessage(`Saved to Google Drive as "${setName}". ✅`);
+                          setSaveMessage(`Saved as: "${savedSetName}". ✅`);
                           setImages([]);
                         },
                       });
