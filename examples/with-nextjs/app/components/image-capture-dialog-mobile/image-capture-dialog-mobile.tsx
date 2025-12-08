@@ -312,9 +312,8 @@ export function ImageCaptureDialogMobile({
                         setIsSaving,
                         onError: setError,
                         onSuccess: (setName) => {
-                          setSaveMessage(
-                            `Saved to Google Drive as "${setName}". ✅`,
-                          );
+                          setShowGallery(false); // ✅ close AFTER upload success
+                          setSaveMessage(`Saved to Google Drive as "${setName}". ✅`);
                           setImages([]);
                         },
                       });
@@ -329,7 +328,11 @@ export function ImageCaptureDialogMobile({
                       Saving to Google Drive...
                     </>
                   ) : (
-                      "Save All"
+                    <>
+                      <Save className="w-4 h-4 mr-2" />
+                      Save All
+                    </>
+                    
                   )}
                   </Button>
                 </div>
