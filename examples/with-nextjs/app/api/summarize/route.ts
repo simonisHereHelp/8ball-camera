@@ -10,26 +10,53 @@ const PROMPTS_URL =
   process.env.PROMPTS_URL ??
   "https://drive.google.com/uc?export=download&id=15Ax2eWZoMxj_WsxMVwxmJaLpOxZ-Fc-o";
 
+const CANONICALS_URL = "https://drive.google.com/uc?export=download&id=13-Z83OU_QYug7z0_6R1VtZ35HYQrwLIC"
+
+
 let cachedPrompts: PromptConfig | null = null;
 
 async function fetchPrompts(): Promise<PromptConfig> {
   if (cachedPrompts) return cachedPrompts;
 
   try {
-    const response = await fetch(PROMPTS_URL);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    // fetch prompts + taxonomy in parallel
+    const [promptsRes, canonicalsRes] = await Promise.all([
+      fetch(PROMPTS_URL),
+      fetch(CANONICALS_URL),
+    ]);
 
-    const prompts = (await response.json()) as Partial<PromptConfig>;
+    if (!promptsRes.ok) throw new Error(`PROMPTS HTTP ${promptsRes.status}`);
+    if (!canonicalsRes.ok) throw new Error(`CANONICALS HTTP ${canonicalsRes.status}`);
+
+    const prompts = (await promptsRes.json()) as Partial<PromptConfig>;
+    const canonicals = (await canonicalsRes.json()) as {
+      issuer?: { canonical?: string[] };
+      doc_type?: { canonical?: string[] };
+      action?: { canonical?: string[] };
+    };
+
     if (!prompts.system || !prompts.user) {
       throw new Error("Missing prompt fields");
     }
 
+    const issuerList = (canonicals.issuer?.canonical ?? []).join(", ");
+    const typeList = (canonicals.doc_type?.canonical ?? []).join(", ");
+    const actionList = (canonicals.action?.canonical ?? []).join(", ");
+
+    // inject taxonomy lists into the user template once
+    const userWithCanonicals = prompts.user
+      .replace(/\{\{\s*ISSUER_CANONICALS\s*\}\}/gi, issuerList)
+      .replace(/\{\{\s*TYPE_CANONICALS\s*\}\}/gi, typeList)
+      .replace(/\{\{\s*ACTION_CANONICALS\s*\}\}/gi, actionList);
+
     cachedPrompts = {
       system: prompts.system,
-      user: prompts.user,
-      wordTarget: typeof prompts.wordTarget === "number" ? prompts.wordTarget : 100,
+      user: userWithCanonicals,
+      wordTarget:
+        typeof prompts.wordTarget === "number" ? prompts.wordTarget : 100,
     };
   } catch {
+    // fallback prompt if anything goes wrong
     cachedPrompts = {
       system: "You are a document reader.",
       user: "Summarize these documents in about {{wordTarget}} words.",
