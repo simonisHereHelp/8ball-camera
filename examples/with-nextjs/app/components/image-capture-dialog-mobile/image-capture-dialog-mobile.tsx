@@ -1,7 +1,7 @@
 "use client";
 
 import { Camera, CameraOff, Loader2, RefreshCcw, Save, X } from "lucide-react";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import WebCamera from "@shivantra/react-web-camera";
 import type { FacingMode, WebCameraHandler } from "@shivantra/react-web-camera";
 import { useSession } from "next-auth/react";
@@ -28,6 +28,8 @@ export function ImageCaptureDialogMobile({
   const [showGallery, setShowGallery] = useState(false);
   const [cameraError, setCameraError] = useState(false);
   const [summary, setSummary] = useState("");
+  const [editableSummary, setEditableSummary] = useState("");
+
   const [summaryImageUrl, setSummaryImageUrl] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [saveMessage, setSaveMessage] = useState("");
@@ -39,6 +41,10 @@ export function ImageCaptureDialogMobile({
   const deleteImage = (index: number) => {
     setImages((prev) => prev.filter((_, i) => i !== index));
   };
+
+  useEffect(() => {
+    setEditableSummary(summary);
+  }, [summary]);
 
   const handleClose = () => {
     if (images.length > 0 && !isSaving) {
@@ -280,19 +286,33 @@ export function ImageCaptureDialogMobile({
                   ))}
                 </div>
 
-                {/* Summary displayed here */}
-                    {summary && (
-                      <div className="mt-2 p-3 rounded-lg bg-white/5 border border-white/10">
-                        <h4 className="text-xs font-semibold text-blue-200 mb-1">
-                          Summary (edit if need to)
-                        </h4>
-                        <textarea
-                          value={summary}
-                          onChange={(e) => setSummary(e.target.value)}
-                          className="w-full min-h-[120px] rounded-md bg-black/40 border border-blue-300/40 text-blue-50 text-sm px-3 py-2 whitespace-pre-wrap leading-relaxed focus:outline-none focus:ring-2 focus:ring-blue-400"
-                        />
-                      </div>
-                    )}
+                {/* Summary displayed here, touch-friendly editable draft */}
+                {summary && (
+                  <div className="mt-2 p-3 rounded-lg bg-white/5 border border-white/10">
+                    <h4 className="text-xs font-semibold text-blue-200 mb-1">
+                      Summary (first 800 characters)
+                    </h4>
+
+                    <textarea
+                      className="mt-1 w-full min-h-[120px] rounded-md bg-black/30 border border-white/20 text-sm text-blue-100 px-3 py-2 leading-relaxed whitespace-pre-wrap focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      value={editableSummary}
+                      onChange={(e) => {
+                        // 🔹 only update local draft on each key press
+                        setEditableSummary(e.target.value);
+                      }}
+                      onBlur={() => {
+                        // 🔹 commit to real `summary` only when user leaves the field
+                        const trimmed = editableSummary.trim();
+                        setSummary(trimmed);
+                      }}
+                      placeholder="Edit the summary here if needed…"
+                    />
+                    <p className="mt-1 text-[11px] text-blue-300/70">
+                      Changes are saved when you leave this field (e.g. tap outside).
+                    </p>
+                  </div>
+                )}
+
               </div>
 
               {/* Gallery Footer */}
