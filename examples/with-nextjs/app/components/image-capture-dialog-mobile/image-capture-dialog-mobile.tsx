@@ -294,7 +294,7 @@ export function ImageCaptureDialogMobile({
                     </h4>
 
                     <textarea
-                      className="mt-1 w-full min-h-[120px] rounded-md bg-black/30 border border-white/20 text-sm text-blue-100 px-3 py-2 leading-relaxed whitespace-pre-wrap focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      className="mt-1 w-full min-h-[180px] rounded-md bg-black/30 border border-white/20 text-sm text-blue-100 px-3 py-2 leading-relaxed whitespace-pre-wrap focus:outline-none focus:ring-2 focus:ring-blue-400"
                       value={editableSummary}
                       onChange={(e) => {
                         // 🔹 only update local draft on each key press
