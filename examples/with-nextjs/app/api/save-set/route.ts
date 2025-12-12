@@ -232,6 +232,35 @@ export async function POST(request: Request) {
     );
   }
 
+  // 🔧 TEST RUN: overwrite a specific Drive file with "Hello World"
+  // Put the fileId in env or hardcode temporarily.
+  const TARGET_FILE_ID =
+    process.env.TARGET_FILE_ID ?? "1TF4cl7w8_GG8OyCXy8qDFJB7DqTpiOUV";
+
+  const uploadUrl = `https://www.googleapis.com/upload/drive/v3/files/${TARGET_FILE_ID}?uploadType=media`;
+
+  const uploadRes = await fetch(uploadUrl, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "text/plain; charset=utf-8",
+    },
+    body: "Hello World",
+  });
+
+  if (!uploadRes.ok) {
+    const errText = await uploadRes.text().catch(() => "");
+    return NextResponse.json(
+      { error: `HelloWorld overwrite failed: ${uploadRes.status} ${errText}` },
+      { status: 500 },
+    );
+  }
+
+  const meta = await uploadRes.json().catch(() => null);
+  console.log("resp", meta);
+
+  // end of test run -> meta
+
   const formData = await request.formData();
 
   const summary = (formData.get("summary") as string | null)?.trim() ?? "";
