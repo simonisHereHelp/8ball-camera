@@ -168,21 +168,7 @@ export async function POST(request: Request) {
     );
   }
 
-  // 🔧 TEST RUN: overwrite a specific Drive file with "Hello World"
-  try {
-    const TARGET_FILE_ID =
-      process.env.TARGET_FILE_ID ?? "1TF4cl7w8_GG8OyCXy8qDFJB7DqTpiOUV";
-
-    const meta = await driveEditFile({
-      accessToken,
-      fileId: TARGET_FILE_ID,
-      content: "Hello World",
-    });
-
-    console.log("resp", meta);
-  } 
-
-  // end of test run -> meta
+  // 🔧 TEST RUN: overwrite a specific Drive file with 
 
   const formData = await request.formData();
 
