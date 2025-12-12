@@ -1,7 +1,14 @@
 // @/lib/driveSaveFiles.ts
+import { auth } from "@/auth";
 
 const DRIVE_UPLOAD_URL =
   "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink,webContentLink";
+
+const session = await auth();
+if (!session) throw new Error("driveEditFile: Not authenticated");
+
+const accessToken = (session as any)?.accessToken as string | undefined;
+if (!accessToken) throw new Error("driveEditFile: Missing session.accessToken");
 
 function buildMultipartBody(
   boundary: string,
@@ -34,7 +41,6 @@ function buildMultipartBody(
  * - This keeps route-level naming logic (baseName) intact and testable.
  */
 export async function driveSaveFiles(params: {
-  accessToken: string;
   folderId: string;
   files: File[];
   fileToUpload: (file: File) => Promise<{
@@ -43,7 +49,7 @@ export async function driveSaveFiles(params: {
     mimeType: string;
   }>;
 }) {
-  const { accessToken, folderId, files, fileToUpload } = params;
+  const { folderId, files, fileToUpload } = params;
 
   for (const file of files) {
     const { name, buffer, mimeType } = await fileToUpload(file);
