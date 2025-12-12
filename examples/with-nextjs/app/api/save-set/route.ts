@@ -180,9 +180,7 @@ export async function POST(request: Request) {
     });
 
     console.log("resp", meta);
-  } catch (e) {
-    console.error("HelloWorld overwrite test failed:", e);
-  }
+  } 
 
   // end of test run -> meta
 
