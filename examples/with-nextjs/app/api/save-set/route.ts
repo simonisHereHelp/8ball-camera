@@ -204,7 +204,6 @@ export async function POST(request: Request) {
         : `${setName}.${extension ?? "dat"}`;
 
         await driveSaveFiles({
-          accessToken,
           folderId,
           files,
           fileToUpload: async (file) => {
