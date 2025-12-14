@@ -1,6 +1,10 @@
 # React Web Camera
 
 A lightweight and flexible React component for capturing images from the user’s camera (front or back) with support for `jpeg`, `png`, and `webp` formats. Built with modern React (`hooks` + `forwardRef`) and works on both desktop and mobile browsers.
+## ## helper成功：
+- driveSaveFiles & driveEditFile:
+- 標準化（auth位於lib的helper）
+
 ## 手工改名成功：
 - test_text.txt 成功，接下來做成helpers
 
