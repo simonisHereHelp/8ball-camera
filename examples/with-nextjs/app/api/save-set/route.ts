@@ -1,6 +1,5 @@
 // app/api/save-set/route.ts
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { driveEditFile } from "@/lib/driveEditFile";
 import { driveSaveFiles } from "@/lib/driveSaveFiles";
 
@@ -149,45 +148,23 @@ export async function POST(request: Request) {
     );
   }
 
-  // 🔐 use NextAuth session (server-side) instead of trusting client
-  // const session = await auth();
+  // 🔧 overwrite a specific Drive file with "Hello World"
+  try {
+    const TARGET_FILE_ID =
+      process.env.TARGET_FILE_ID ?? "1TF4cl7w8_GG8OyCXy8qDFJB7DqTpiOUV";
 
-  // if (!session) {
-  //   return NextResponse.json(
-  //     { error: "Not authenticated." },
-  //     { status: 401 },
-  //   );
-  // }
-
-  // const accessToken = (session as any)?.accessToken as string | undefined;
-
-  // if (!accessToken) {
-  //   return NextResponse.json(
-  //     { error: "Missing Google Drive access token on session." },
-  //     { status: 401 },
-  //   );
-  // }
-
-  // 🔧 TEST RUN: overwrite a specific Drive file with "Hello World"
-  // try {
-  //   const TARGET_FILE_ID =
-  //     process.env.TARGET_FILE_ID ?? "1TF4cl7w8_GG8OyCXy8qDFJB7DqTpiOUV";
-
-  //   const meta = await driveEditFile({
-  //     accessToken,
-  //     fileId: TARGET_FILE_ID,
-  //     content: "Hello World",
-  //   });
-
-  //   console.log("resp", meta);
-  // } catch (e) {
-  //   console.error("HelloWorld overwrite test failed:", e);
-  // }
+    const meta = await driveEditFile({
+      fileId: TARGET_FILE_ID,
+      content: "Hello World",
+    });
+  } catch (e) {
+    console.error("HelloWorld overwrite test failed:", e);
+    return new NextResponse("Hello World over write failed.", { status: 500 });
+  }
 
   // end of test run -> meta
 
   const formData = await request.formData();
-
   const summary = (formData.get("summary") as string | null)?.trim() ?? "";
   const setNameFromClient =
     (formData.get("setName") as string | null)?.trim() ?? "";

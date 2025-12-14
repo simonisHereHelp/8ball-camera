@@ -1,12 +1,18 @@
 // @/lib/driveEditFile.ts
+
+import { auth } from "@/auth";
+
 export async function driveEditFile(params: any) {
-  const accessToken = params?.accessToken;
   const fileId = params?.fileId;
   const content = params?.content ?? "";
   const contentType = params?.contentType ?? "text/plain; charset=utf-8";
-
-  if (!accessToken) throw new Error("Missing accessToken");
   if (!fileId) throw new Error("Missing fileId");
+  const session = await auth();
+  if (!session) throw new Error("Not authenticated.");
+
+  const accessToken = (session as any)?.accessToken as string | undefined;
+
+  if (!accessToken) throw new Error("Missing Google Drive access token on session.");
 
   const uploadUrl = `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`;
 
@@ -24,6 +30,4 @@ export async function driveEditFile(params: any) {
     throw new Error(`driveEditFile failed: ${res.status} ${errText}`);
   }
 
-  // Drive usually returns JSON metadata for this PATCH
-  return res.json().catch(() => null);
 }
