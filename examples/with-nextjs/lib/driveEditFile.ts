@@ -5,7 +5,6 @@ import { auth } from "@/auth";
 export async function driveEditFile(params: any) {
   const fileId = params?.fileId;
   const content = params?.content ?? "";
-  const contentType = params?.contentType ?? "text/plain; charset=utf-8";
   if (!fileId) throw new Error("Missing fileId");
   const session = await auth();
   if (!session) throw new Error("Not authenticated.");
@@ -20,7 +19,7 @@ export async function driveEditFile(params: any) {
     method: "PATCH",
     headers: {
       Authorization: `Bearer ${accessToken}`,
-      "Content-Type": contentType,
+      "Content-Type": "application/json; charset=utf-8",
     },
     body: content,
   });
