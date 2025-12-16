@@ -11,15 +11,15 @@ export interface Image {
  */
 export const handleSave = async ({
   images,
-  draftSummary, // Retained in function signature to match caller, but ignored in body logic
-  editableSummary, 
+  draftSummary, // ✅ 原始 LLM 輸出
+  editableSummary, // ✅ 用戶編輯後的最終摘要
   setIsSaving,
   onError,
   onSuccess,
 }: {
   images: Image[];
-  draftSummary: string; // Original LLM output (Ignored for JSON/POST body content)
-  editableSummary: string; // Edited and final content
+  draftSummary: string; 
+  editableSummary: string; 
   setIsSaving: (isSaving: boolean) => void;
   onError?: (message: string) => void;
   onSuccess?: (setName: string) => void;
@@ -40,7 +40,6 @@ export const handleSave = async ({
     formData.append("summary", finalSummary);
 
     // 2. summary.json file — server will rename it to setName.json
-    // JSON content now includes ONLY the 'summary' (final edited content), as requested.
     const summaryFile = new File(
       [JSON.stringify({ summary: finalSummary }, null, 2)],
       "summary.json",
@@ -53,7 +52,7 @@ export const handleSave = async ({
       formData.append("files", image.file);
     });
 
-    // API call to the correct endpoint
+    // API call to the correct endpoint /api/save-set
     const response = await fetch("/api/save-set", {
       method: "POST",
       body: formData,
@@ -68,11 +67,38 @@ export const handleSave = async ({
       | { setName?: string }
       | null;
 
+    // 2️⃣ Canonical Update: ping /api/update-issuerCanon with summaries
+    try {
+        // ✅ 修正了 API 端點名稱與參數
+        const updateResponse = await fetch("/api/update-issuerCanon", {
+            method: "POST",
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                draftSummary: draftSummary.trim(),
+                editableSummary: finalSummary,
+            }),
+            credentials: "include" 
+        });
+
+        if (!updateResponse.ok) {
+            console.warn(`[update-issuerCanon] Server warning/error: ${updateResponse.status}`);
+        }
+
+        console.log("[update-issuerCanon] Finished attempt.");
+    } catch (e) {
+      // canonicals update should not block main save flow
+      console.error("Error calling /api/update-issuerCanon:", e);
+    }
+
+
     // 🔔 let the UI know the final server-side setName (if provided)
     if (onSuccess) {
       onSuccess(json?.setName ?? "");
     }
     
+
   } catch (error) {
     console.error("Failed to save images:", error);
     onError?.("Unable to save captured images. Please try again.");

@@ -1,6 +1,5 @@
 // app/api/save-set/route.ts
 import { NextResponse } from "next/server";
-import { driveEditFile } from "@/lib/driveEditFile";
 import { driveSaveFiles } from "@/lib/driveSaveFiles";
 
 
@@ -132,22 +131,6 @@ export async function POST(request: Request) {
     );
   }
 
-  // 🔧 overwrite a specific Drive file with "Hello World"
-  try {
-    const FILE_ID =
-      process.env.GOOGLE_FILE_ID_CANONICALS;
-      const meta = await driveEditFile({
-      fileId : FILE_ID,
-      issuer: "兆豐",
-      alias: "兆豐銀行alias_" + Date.now() 
-
-    });
-  } catch (e) {
-    console.error("JSON overwrite test failed:", e);
-    return new NextResponse("canonicals JSON over write failed.", { status: 500 });
-  }
-
-  // end of test run -> meta
 
   const formData = await request.formData();
   const summary = (formData.get("summary") as string | null)?.trim() ?? "";
