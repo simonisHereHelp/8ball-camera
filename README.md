@@ -1,6 +1,16 @@
 # React Web Camera
 
 A lightweight and flexible React component for capturing images from the user’s camera (front or back) with support for `jpeg`, `png`, and `webp` formats. Built with modern React (`hooks` + `forwardRef`) and works on both desktop and mobile browsers.
+## modualize and make as a container
+
+app/components/image-capture-dialog-mobile/
+├── ImageCaptureDialogMobile.tsx     // Main Container
+├── useImageCaptureState.ts          // Custom Hook for State & Logic
+├── CameraView.tsx                   // Renders Camera/Capture UI
+├── GalleryView.tsx                  // Renders Image Gallery/Summary/Save UI
+└── types.ts                         // Shared Interfaces
+
+
 ## 更改canonical.JSON 成功
 - canonicals.json 格式簡化
 - 修改JSON成功
