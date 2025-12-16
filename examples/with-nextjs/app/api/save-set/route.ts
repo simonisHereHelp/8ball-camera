@@ -24,40 +24,24 @@ let cachedPrompts: PromptConfig | null = null;
 async function fetchPrompts(): Promise<PromptConfig> {
   if (cachedPrompts) return cachedPrompts;
 
-  try {
-    const res = await fetch(PROMPTS_URL);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const res = await fetch(PROMPTS_URL);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-    const prompts = (await res.json()) as Partial<PromptConfig>;
-    if (!prompts.system || !prompts.user) {
-      throw new Error("Missing prompt fields");
-    }
-
-    cachedPrompts = {
-      system: prompts.system,
-      user: prompts.user,
-      wordTarget:
-        typeof prompts.wordTarget === "number" ? prompts.wordTarget : 100,
-    };
-  } catch {
-    // fallback prompts（你貼的中文說明）
-    cachedPrompts = {
-      system: "You are a document file labeler.",
-      user:
-        "你會收到一份文件內容摘要，摘要通常包含寄件單位、文件性質與需要處理的行動。\n\n" +
-        "請根據摘要產生一個「標籤名稱」，標籤格式必須為：\n\n" +
-        "單位-性質-行動\n\n例如：\n兆豐-餘額通知-請保存做記錄\n\n" +
-        "規則：\n" +
-        "1) 「單位」為文件發出方（例如：銀行、保險公司、政府機關、電信公司等）需要給出具體的名字，如兆豐、台灣銀行、中華電信，若無法判斷請填「其他單位」。\n" +
-        "2) 「性質」請簡要描述文件類型（例如：帳單、通知、催繳、變更服務、補件、一般通知、廣告、節日祝賀、客戶關係等）。\n" +
-        "3) 「行動」請指出收件人應採取的動作（例如：請繳費、請回覆、請保留、請更新資料、請聯絡我們、等），若無具體行動請填「一般處理」。\n\n" +
-        "請只輸出最後的標籤結果，不要加上任何說明或多餘文字。",
-      wordTarget: 100,
-    };
+  const prompts = (await res.json()) as Partial<PromptConfig>;
+  if (!prompts.system || !prompts.user) {
+    throw new Error("Missing prompt fields");
   }
+
+  cachedPrompts = {
+    system: prompts.system,
+    user: prompts.user,
+    wordTarget:
+      typeof prompts.wordTarget === "number" ? prompts.wordTarget : 100,
+  };
 
   return cachedPrompts;
 }
+
 
 function buildUserPrompt(template: string, words: number) {
   return template.replace(/\{\{\s*wordTarget\s*\}\}/gi, String(words));
