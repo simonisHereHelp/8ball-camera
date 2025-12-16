@@ -21,8 +21,11 @@ export const useImageCaptureState = (
   const [isSaving, setIsSaving] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
   const [cameraError, setCameraError] = useState(false);
-  const [summary, setSummary] = useState("");
+  
+  // RENAMED: summary -> draftSummary
+  const [draftSummary, setDraftSummary] = useState("");
   const [editableSummary, setEditableSummary] = useState("");
+  
   const [summaryImageUrl, setSummaryImageUrl] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [saveMessage, setSaveMessage] = useState("");
@@ -33,9 +36,8 @@ export const useImageCaptureState = (
 
   // --- Callbacks and Handlers ---
 
-  useEffect(() => {
-    setEditableSummary(summary);
-  }, [summary]);
+  // REMOVED: The previous useEffect is replaced by initialization logic in handleSummarize
+  // to avoid overwriting user edits after the first draft is created.
 
   const deleteImage = useCallback((index: number) => {
     setImages((prev) => prev.filter((_, i) => i !== index));
@@ -53,7 +55,8 @@ export const useImageCaptureState = (
     }
     // Reset all state when closing
     setImages([]);
-    setSummary("");
+    setDraftSummary(""); // Updated
+    setEditableSummary(""); // Reset editableSummary on close
     setSummaryImageUrl(null);
     setError("");
     setSaveMessage("");
@@ -70,7 +73,8 @@ export const useImageCaptureState = (
         const url = URL.createObjectURL(file);
         // Clear previous state after a new capture
         setSummaryImageUrl(null);
-        setSummary("");
+        setDraftSummary(""); // Updated
+        setEditableSummary(""); // Reset editableSummary on new capture
         setError("");
         setSaveMessage("");
         setShowGallery(false);
@@ -96,10 +100,18 @@ export const useImageCaptureState = (
   const handleSummarize = useCallback(async () => {
     setSaveMessage("");
     setError("");
+    
+    // Custom setter to set both draftSummary (LLM output) and editableSummary (user view)
+    const setSummaries = (newSummary: string) => {
+      setDraftSummary(newSummary);
+      setEditableSummary(newSummary); // Initializes editableSummary = draftSummary
+    }
+    
+    // Pass the custom setter to the external utility
     await handleSummary({
       images,
       setIsSaving,
-      setSummary,
+      setSummary: setSummaries, // Utility calls this to set the summary content
       setSummaryImageUrl,
       setShowSummaryOverlay,
       setError,
@@ -113,26 +125,32 @@ export const useImageCaptureState = (
   const handleSaveImages = useCallback(async () => {
     if (!session) return;
     setSaveMessage("");
-    if (!summary.trim()) {
+    
+    const finalSummary = editableSummary.trim();
+    
+    if (!finalSummary) { // Check against the editableSummary, which is the final content
       setError("Please summarize before saving.");
       return;
     }
     setError("");
 
+    // NEW PARAMS: Pass both draftSummary and editableSummary
     await handleSave({
       images,
-      summary,
+      draftSummary, // Original AI draft
+      editableSummary: finalSummary, // Edited and final content
       setIsSaving,
       onError: setError,
       onSuccess: (savedSetName) => {
         setShowGallery(false); // Close gallery after success
         setSaveMessage(`Saved as: "${savedSetName}". ✅`);
         setImages([]); // Clear images after save
-        setSummary("");
+        setDraftSummary("");
         setEditableSummary("");
       },
     });
-  }, [session, images, summary]);
+  // Added draftSummary and editableSummary to dependencies
+  }, [session, images, draftSummary, editableSummary]);
 
   const state: State = {
     images,
@@ -140,7 +158,7 @@ export const useImageCaptureState = (
     isSaving,
     showGallery,
     cameraError,
-    summary,
+    draftSummary, // Updated
     editableSummary,
     summaryImageUrl,
     error,
@@ -156,7 +174,7 @@ export const useImageCaptureState = (
     handleSaveImages,
     handleClose,
     setEditableSummary,
-    setSummary,
+    setDraftSummary, // Updated
     setShowGallery,
     setCameraError,
   };

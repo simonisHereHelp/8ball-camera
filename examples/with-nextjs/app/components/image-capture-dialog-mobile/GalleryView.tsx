@@ -10,22 +10,18 @@ interface GalleryViewProps {
 }
 
 export function GalleryView({ state, actions }: GalleryViewProps) {
-  const { images, summary, editableSummary, isSaving } = state;
+  // RENAMED: summary -> draftSummary
+  const { images, draftSummary, editableSummary, isSaving } = state; 
   const {
     deleteImage,
     handleSaveImages,
     setShowGallery,
     setEditableSummary,
-    setSummary,
+    // REMOVED setDraftSummary from destructuring as UI should only edit editableSummary
   } = actions;
 
-  // Handler to commit editable summary to main summary state on blur
-  const handleSummaryBlur = () => {
-    const trimmed = editableSummary.trim();
-    if (trimmed !== summary) {
-      setSummary(trimmed);
-    }
-  };
+  // REMOVED handleSummaryBlur - user edits directly to editableSummary, which is passed to handleSave.
+  // The 'draftSummary' must remain in its original state as per instruction.
 
   return (
     <div className="absolute inset-0 bg-black/90 backdrop-blur-sm z-40 sm:rounded-[2rem] flex flex-col">
@@ -71,21 +67,21 @@ export function GalleryView({ state, actions }: GalleryViewProps) {
         </div>
 
         {/* Summary Editor */}
-        {summary && (
+        {draftSummary && ( // Use draftSummary to check if summary exists
           <div className="mt-2 p-3 rounded-lg bg-white/5 border border-white/10">
             <h4 className="text-xs font-semibold text-blue-200 mb-1">
-              Summary (first 800 characters)
+              Final Summary (Edit Draft Below)
             </h4>
 
             <textarea
               className="mt-1 w-full min-h-[180px] rounded-md bg-black/30 border border-white/20 text-sm text-blue-100 px-3 py-2 leading-relaxed whitespace-pre-wrap focus:outline-none focus:ring-2 focus:ring-blue-400"
               value={editableSummary}
               onChange={(e) => setEditableSummary(e.target.value)}
-              onBlur={handleSummaryBlur}
-              placeholder="Edit the summary here if needed…"
+              // Removed onBlur since state is updated on every change, and final content is used at save time.
+              placeholder="Edit the AI draft summary here..."
             />
             <p className="mt-1 text-[11px] text-blue-300/70">
-              Changes are saved when you leave this field (e.g., tap outside).
+              This summary will be saved. The original AI draft is preserved.
             </p>
           </div>
         )}
@@ -95,7 +91,8 @@ export function GalleryView({ state, actions }: GalleryViewProps) {
       <div className="p-4 border-t border-white/20">
         <Button
           onClick={handleSaveImages}
-          disabled={images.length === 0 || isSaving || !summary.trim()}
+          // Check disabled state against images and the currently edited summary
+          disabled={images.length === 0 || isSaving || !editableSummary.trim()}
           className="w-full bg-blue-400 hover:bg-blue-300 text-white flex items-center justify-center gap-2"
         >
           {isSaving ? (

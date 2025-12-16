@@ -12,14 +12,15 @@ export interface Image {
 export const handleSummary = async ({
   images,
   setIsSaving,
-  setSummary,
+  setSummary, // NOTE: This function now sets BOTH draftSummary and editableSummary in the calling hook.
   setSummaryImageUrl,
   setShowSummaryOverlay,
   setError,
 }: {
   images: Image[];
   setIsSaving: (isSaving: boolean) => void;
-  setSummary: (summary: string) => void;
+  // UPDATED: setSummary is now a function that takes the final summary string
+  setSummary: (summary: string) => void; 
   setSummaryImageUrl: (url: string | null) => void;
   setShowSummaryOverlay: (show: boolean) => void;
   setError: (message: string) => void;
@@ -58,6 +59,7 @@ export const handleSummary = async ({
     // First 800 characters only
     const summaryText = (data.summary || "").slice(0, 800);
 
+    // Call the custom setter, which will update both draftSummary and editableSummary
     setSummary(summaryText);
     setSummaryImageUrl(images[images.length - 1].url);
     setShowSummaryOverlay(true);

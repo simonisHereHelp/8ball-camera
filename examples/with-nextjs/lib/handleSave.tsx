@@ -1,4 +1,4 @@
-// app/lib/handleSave.ts (-)
+// app/lib/handleSave.ts
 
 export interface Image {
   url: string;
@@ -11,13 +11,15 @@ export interface Image {
  */
 export const handleSave = async ({
   images,
-  summary,
+  draftSummary, // NEW: Original LLM output
+  editableSummary, // NEW: Edited and final content
   setIsSaving,
   onError,
   onSuccess,
 }: {
   images: Image[];
-  summary: string;
+  draftSummary: string; // NEW PARAM
+  editableSummary: string; // NEW PARAM (Used as the final summary content)
   setIsSaving: (isSaving: boolean) => void;
   onError?: (message: string) => void;
   onSuccess?: (setName: string) => void;
@@ -25,20 +27,25 @@ export const handleSave = async ({
   // nothing to save
   if (!images.length) return;
 
-  const trimmedSummary = summary.trim();
-  if (!trimmedSummary) return;
+  const finalSummary = editableSummary.trim();
+  // Check against the final edited summary
+  if (!finalSummary) return;
 
   setIsSaving(true);
 
   try {
     const formData = new FormData();
 
-    // let the server derive setName from summary
-    formData.append("summary", trimmedSummary);
+    // Use the final edited summary for the server to derive setName (as before)
+    formData.append("summary", finalSummary);
 
     // summary file — server will rename it to setName.json
+    // The JSON file now contains both the original draft and the final edited summary
     const summaryFile = new File(
-      [JSON.stringify({ summary: trimmedSummary }, null, 2)],
+      [JSON.stringify({ 
+        draftSummary: draftSummary.trim(), // Include the original draft
+        summary: finalSummary,           // Include the final edited content
+      }, null, 2)],
       "summary.json",
       { type: "application/json" },
     );

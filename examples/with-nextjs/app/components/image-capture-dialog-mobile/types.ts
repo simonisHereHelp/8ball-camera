@@ -13,12 +13,13 @@ export interface State {
   isSaving: boolean;
   showGallery: boolean;
   cameraError: boolean;
-  summary: string;
+  // RENAMED: summary -> draftSummary
+  draftSummary: string;
   editableSummary: string;
   summaryImageUrl: string | null;
   error: string;
   saveMessage: string;
-  showSummaryOverlay: boolean; // Retained, though not used in UI
+  showSummaryOverlay: boolean; 
 }
 
 export interface Actions {
@@ -29,7 +30,8 @@ export interface Actions {
   handleSaveImages: () => Promise<void>;
   handleClose: () => void;
   setEditableSummary: (summary: string) => void;
-  setSummary: (summary: string) => void;
+  // RENAMED: setSummary -> setDraftSummary
+  setDraftSummary: (summary: string) => void;
   setShowGallery: (show: boolean) => void;
   setCameraError: (error: boolean) => void;
 }
