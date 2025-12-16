@@ -1,15 +1,17 @@
 // app/api/save-set/route.ts
 import { NextResponse } from "next/server";
+import { Buffer } from "buffer"; // ✅ 新增：確保 Buffer 可用
 import { driveSaveFiles } from "@/lib/driveSaveFiles";
-
+import { fetchCanonicalFileContent } from "@/lib/driveCanonUtils"; // ✅ 使用 driveCanonUtils
 
 export const runtime = "nodejs"; // ensure Node APIs like Buffer are available
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const DRIVE_FOLDER_ID = process.env.DRIVE_FOLDER_ID; // 使用 DRIVE_FOLDER_ID
 
 const PROMPTS_URL =
   process.env.PROMPTS_URL ??
-  "https://drive.google.com/uc?export=download&id=1srQP_Ekw79v45jgkwgeV67wx6j9OcmII";
+  "https://drive.google.com/uc?export=download&id=1srQP_Ekw79v45jgkwgeV67wx6j9OcmII"; //prompt_4_setName
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 type PromptConfig = {
   system: string;
@@ -35,19 +37,26 @@ async function fetchPrompts(): Promise<PromptConfig> {
     system: prompts.system,
     user: prompts.user,
     wordTarget:
-      typeof prompts.wordTarget === "number" ? prompts.wordTarget : 100,
+      typeof prompts.wordTarget === "number" ? prompts.wordTarget : 300,
   };
 
   return cachedPrompts;
 }
 
 
+// 註：此處的 buildUserPrompt 函式在新的 Prompt 結構下已不需要
+// 因為新的 Prompt 是直接替換 {{CANONICALS_JSON}} 和 {{SUMMARY}} 佔位符。
+// 為了保持與舊函式簽名兼容，將其簡化為只返回模板。
 function buildUserPrompt(template: string, words: number) {
+  // 替換 {{wordTarget}}，儘管在新標籤 Prompt 中可能未使用
   return template.replace(/\{\{\s*wordTarget\s*\}\}/gi, String(words));
 }
 
-// 用 ChatGPT 根據 summary 產生「單位-性質-行動」，再加上日期 => setName
-async function deriveSetNameFromSummary(summary: string): Promise<string> {
+// ✅ 修正：新增 canonicalsJson 參數
+async function deriveSetNameFromSummary(
+  summary: string,
+  canonicalsJson: string,
+): Promise<string> {
   const trimmed = summary.trim();
 
   // 日期部分：YYYYMMDD
@@ -71,10 +80,13 @@ async function deriveSetNameFromSummary(summary: string): Promise<string> {
 
   try {
     const prompts = await fetchPrompts();
-    const wordTarget = prompts.wordTarget ?? 100;
-    const userPrompt = buildUserPrompt(prompts.user, wordTarget);
+    const wordTarget = prompts.wordTarget ?? 300;
+    const userPromptTemplate = buildUserPrompt(prompts.user, wordTarget);
 
-    const userContent = `${userPrompt}\n\n以下是文件摘要：\n${trimmed}`;
+    // ✅ 修正：將 canonicalsJson 和 summary 注入 User Prompt
+    const userContent = userPromptTemplate
+      .replace("{{CANONICALS_JSON}}", canonicalsJson)
+      .replace("{{SUMMARY}}", trimmed);
 
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -89,6 +101,7 @@ async function deriveSetNameFromSummary(summary: string): Promise<string> {
           { role: "user", content: userContent },
         ],
         max_tokens: 64,
+        temperature: 0, // 增加穩定性
       }),
     });
 
@@ -122,15 +135,12 @@ async function deriveSetNameFromSummary(summary: string): Promise<string> {
 }
 
 export async function POST(request: Request) {
-  const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
-
-  if (!folderId) {
+  if (!DRIVE_FOLDER_ID) {
     return NextResponse.json(
-      { error: "Missing Google Drive configuration." },
+      { error: "Missing DRIVE_FOLDER_ID environment variable." },
       { status: 500 },
     );
   }
-
 
   const formData = await request.formData();
   const summary = (formData.get("summary") as string | null)?.trim() ?? "";
@@ -153,32 +163,47 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
+  
+  try {
+    // 1. 獲取 Canonicals 清單
+    const canonicalsJson = await fetchCanonicalFileContent(); // ✅ 使用 driveCanonUtils
 
-  // ✅ 優先使用 client setName（若你未來要從前端傳固定標籤），否則用 GPT 從 summary 推出 setName
-  const setName = setNameFromClient || (await deriveSetNameFromSummary(summary));
-    try {
-      await driveSaveFiles({
-        folderId,
-        files,
-        fileToUpload: async (file) => {
-          const extension = file.name.split(".").pop();
-          const baseName = file.name.includes(setName)
-            ? file.name
-            : `${setName}.${extension ?? "dat"}`;
+    // 2. 決定 setName：優先使用客戶端提供的名稱，否則通過 GPT 生成
+    const setName =
+      setNameFromClient ||
+      (await deriveSetNameFromSummary(summary, canonicalsJson)); // ✅ 傳入 canonicalsJson
 
-          return {
-            name: baseName,
-            buffer: Buffer.from(await file.arrayBuffer()),
-            mimeType: file.type,
-          };
-        },
-      });
+    // 3. 執行 Drive 儲存操作
+    await driveSaveFiles({
+      folderId: DRIVE_FOLDER_ID, // ✅ 修正：使用 folderId 命名
+      files,
+      fileToUpload: async (file) => {
+        const baseName = setName.replace(/[\\/:*?"<>|]/g, "_"); // 清理非法字元
+        const extension = file.name.split(".").pop();
 
-      // ✅ success response
-      return NextResponse.json({ setName }, { status: 200 });
-    } catch (err) {
-      console.error("driveSaveFiles failed:", err);
-      // ❌ error response
-      return new NextResponse("save-set failed.", { status: 500 });
-    }
+        // 命名邏輯：summary.json => setName.json；其他檔案 => setName-pX.ext
+        let fileName: string;
+        if (file.name === "summary.json") {
+            fileName = `${baseName}.json`;
+        } else {
+            // 找到第一個非 summary.json 檔案的索引
+            const imageIndex = files.filter(f => f.name !== "summary.json").indexOf(file) + 1;
+            fileName = `${baseName}-p${imageIndex}.${extension ?? "dat"}`;
+        }
+        
+        return {
+          name: fileName,
+          buffer: Buffer.from(await file.arrayBuffer()),
+          mimeType: file.type,
+        };
+      },
+    });
+
+    // ✅ success response
+    return NextResponse.json({ setName }, { status: 200 });
+  } catch (err: any) {
+    console.error("save-set failed:", err);
+    // ❌ error response
+    return new NextResponse(err.message || "save-set failed.", { status: 500 });
+  }
 }

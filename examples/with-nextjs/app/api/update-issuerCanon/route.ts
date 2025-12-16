@@ -2,42 +2,13 @@
 
 import { NextResponse } from "next/server";
 import { driveUpdateCanon } from "@/lib/driveUpdateCanon"; 
-// ✅ 更新匯入名稱
 import { driveOverwriteCanon } from "@/lib/driveOverwriteCanon"; 
+import { fetchCanonicalFileContent } from "@/lib/driveCanonUtils";
 import { auth } from "@/auth";
 
 export const runtime = "nodejs";
 
 const CANONICAL_FILE_ID = process.env.DRIVE_FILE_ID_CANONICALS;
-
-/**
- * Fetches the raw JSON content of the canonical file from Google Drive (Read operation only).
- */
-async function fetchCanonicalFileContent(): Promise<string> {
-    const session = await auth();
-    const accessToken = (session as any)?.accessToken as string | undefined;
-
-    if (!CANONICAL_FILE_ID) {
-        throw new Error("Missing DRIVE_FILE_ID_CANONICALS environment variable.");
-    }
-    if (!accessToken) {
-        throw new Error("Missing Google Drive access token on session.");
-    }
-    
-    // 1) LOAD current file content
-    const downloadUrl = `https://www.googleapis.com/drive/v3/files/${CANONICAL_FILE_ID}?alt=media&supportsAllDrives=true`;
-    const readRes = await fetch(downloadUrl, {
-        method: "GET",
-        headers: { Authorization: `Bearer ${accessToken}` },
-    });
-
-    if (!readRes.ok) {
-        const errText = await readRes.text().catch(() => "");
-        throw new Error(`Canonical file read failed: ${readRes.status} ${errText}`);
-    }
-
-    return readRes.text();
-}
 
 
 export async function POST(request: Request) {
