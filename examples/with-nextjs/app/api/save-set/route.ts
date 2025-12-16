@@ -4,10 +4,10 @@ import { Buffer } from "buffer";
 import { driveSaveFiles } from "@/lib/driveSaveFiles";
 import { fetchCanonicalFileContent } from "@/lib/driveCanonUtils"; 
 
-// 🎯 新增：Canonical 更新所需的函式與常數
-import { driveUpdateCanon } from "@/lib/driveUpdateCanon"; 
-import { driveOverwriteCanon } from "@/lib/driveOverwriteCanon"; 
-const CANONICAL_FILE_ID = process.env.DRIVE_FILE_ID_CANONICALS; 
+// ❌ 移除：Canonical 更新的函式與常數，因為職責已轉移
+// import { driveUpdateCanon } from "@/lib/driveUpdateCanon"; 
+// import { driveOverwriteCanon } from "@/lib/driveOverwriteCanon"; 
+// const CANONICAL_FILE_ID = process.env.DRIVE_FILE_ID_CANONICALS; 
 
 export const runtime = "nodejs"; 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
@@ -144,10 +144,13 @@ export async function POST(request: Request) {
   }
 
   const formData = await request.formData();
-  // ✅ NEW: 接收原始 LLM 輸出的摘要，用於 Canonical Learning
-  const draftSummary = (formData.get("draftSummary") as string | null)?.trim() ?? "";
-  // 這是使用者編輯後的最終摘要 (用於產生最終 setName)
+  
+  // ❌ 移除：draftSummary 不需要在這裡解析，它僅用於 /api/update-issuerCanon
+  // const draftSummary = (formData.get("draftSummary") as string | null)?.trim() ?? ""; 
+  
+  // ✅ 這是使用者編輯後的最終摘要 (用於產生最終 setName)
   const summary = (formData.get("summary") as string | null)?.trim() ?? "";
+  
   const files = formData
     .getAll("files")
     .filter((file): file is File => file instanceof File);
@@ -167,12 +170,11 @@ export async function POST(request: Request) {
   }
   
   try {
-    // 1. 獲取 Canonicals 清單 (動態數據)
+    // 1. 獲取 Canonicals 清單 (用於命名時提供上下文，維持此步驟)
     const canonicalsJson = await fetchCanonicalFileContent(); 
 
-    // 2. 決定 setName：
-    // 通過 GPT 從編輯後摘要 (summary) 生成
-    const setName = deriveSetNameFromSummary(summary, canonicalsJson); 
+    // 2. 命名：基於編輯後的摘要 (summary) 生成
+    const setName = await deriveSetNameFromSummary(summary, canonicalsJson); 
 
     // 3. 執行 Drive 儲存操作 (File Saving)
     await driveSaveFiles({
@@ -199,31 +201,17 @@ export async function POST(request: Request) {
       },
     });
 
-    // ⭐ 4. Canonical Update (Learning) - 確保在文件儲存後執行
-    // 這一步是為了實現：Canonical(勞保局) -> Alias(勞保單位)
+    // ❌ 移除：Canonical Update 邏輯 (步驟 4)
+    // 職責已轉移給 handleSave.tsx 中呼叫的 /api/update-issuerCanon
+    /*
     if (draftSummary && summary && CANONICAL_FILE_ID) {
         try {
-            // 4a. 呼叫 GPT 輔助函數，比較 draft/edited summary，以獲取 Canonical/Alias
-            const { canonical, alias } = await driveUpdateCanon({
-                canonicalBibleJson: canonicalsJson,
-                draftSummary: draftSummary, // 原始 LLM 輸出
-                editableSummary: summary,    // 最終編輯內容
-            });
-
-            // 4b. 若需要更新，則執行 Drive 寫入操作
-            if (canonical && alias) {
-                await driveOverwriteCanon({
-                    fileId: CANONICAL_FILE_ID,
-                    canonical: canonical,
-                    alias: alias,
-                });
-                console.log(`✅ Canonical update in save-set: ${canonical} -> ${alias}`);
-            }
+            // ... (Removed Canonical update logic)
         } catch (e) {
-            // Canonical update 是非關鍵的 side effect，不應中斷文件儲存的成功回應
             console.error("Canonical update failed (non-critical):", e);
         }
     }
+    */
 
     // ✅ success response
     return NextResponse.json({ setName }, { status: 200 });
