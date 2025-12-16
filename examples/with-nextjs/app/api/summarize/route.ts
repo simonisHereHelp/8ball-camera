@@ -1,3 +1,5 @@
+// app/api/summarize/route.ts
+
 import { NextResponse } from "next/server";
 
 type PromptConfig = {
@@ -10,7 +12,7 @@ const PROMPTS_URL =
   process.env.PROMPTS_URL ??
   "https://drive.google.com/uc?export=download&id=15Ax2eWZoMxj_WsxMVwxmJaLpOxZ-Fc-o";
 
-const CANONICALS_URL = "https://drive.google.com/uc?export=download&id=13-Z83OU_QYug7z0_6R1VtZ35HYQrwLIC"
+// 已移除 CANONICALS_URL
 
 let cachedPrompts: PromptConfig | null = null;
 
@@ -42,41 +44,12 @@ async function fetchPrompts(): Promise<PromptConfig> {
       throw new Error("Missing prompt fields");
     }
 
-    // 2) Fetch taxonomy (canonicals)
-    const canonicalsRes = await fetch(CANONICALS_URL);
-    if (!canonicalsRes.ok) {
-      const body = await canonicalsRes.text().catch(() => "");
-      console.error("❌ CANONICALS fetch failed", canonicalsRes.status, body);
-      throw new Error(`CANONICALS HTTP ${canonicalsRes.status}`);
-    }
-
-    const canonicalsText = await canonicalsRes.text();
-    console.log("📄 Raw taxonomy.json:", canonicalsText);
-
-    let canonicals: any;
-    try {
-      canonicals = JSON.parse(canonicalsText);
-    } catch (e) {
-      console.error("❌ Failed to parse taxonomy.json as JSON", e);
-      throw e;
-    }
-
-    const issuerList = (canonicals.issuer?.canonical ?? []).join(", ");
-    const typeList = (canonicals.doc_type?.canonical ?? []).join(", ");
-    const actionList = (canonicals.action?.canonical ?? []).join(", ");
-
-    console.log("✅ Parsed issuerList:", issuerList);
-    console.log("✅ Parsed typeList:", typeList);
-    console.log("✅ Parsed actionList:", actionList);
-
-    const userWithCanonicals = (prompts.user as string)
-      .replace(/\{\{\s*ISSUER_CANONICALS\s*\}\}/gi, issuerList)
-      .replace(/\{\{\s*TYPE_CANONICALS\s*\}\}/gi, typeList)
-      .replace(/\{\{\s*ACTION_CANONICALS\s*\}\}/gi, actionList);
+    // 已移除所有關於 canonicals 的抓取與處理邏輯
 
     cachedPrompts = {
       system: prompts.system as string,
-      user: userWithCanonicals,
+      // 直接使用 prompt 模板，不包含 canonicals 替換
+      user: prompts.user as string, 
       wordTarget:
         typeof prompts.wordTarget === "number" ? prompts.wordTarget : 100,
     };
