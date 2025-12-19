@@ -1,70 +1,52 @@
 // app/api/update-issuerCanon/route.ts
 
 import { NextResponse } from "next/server";
-import { driveUpdateCanon } from "@/lib/driveUpdateCanon"; 
-import { driveOverwriteCanon } from "@/lib/driveOverwriteCanon"; 
-import { fetchCanonicalFileContent } from "@/lib/driveCanonUtils";
-import { auth } from "@/auth";
+import { GPT_Router } from "@/lib/gptRouter";
 
 export const runtime = "nodejs";
 
 const CANONICAL_FILE_ID = process.env.DRIVE_FILE_ID_CANONICALS;
 
-
 export async function POST(request: Request) {
-    // 1. 檢查關鍵環境變數
     if (!CANONICAL_FILE_ID) {
-        console.error("❌ Configuration Error: DRIVE_FILE_ID_CANONICALS is missing.");
-        return NextResponse.json({ error: "Missing DRIVE_FILE_ID_CANONICALS configuration." }, { status: 500 });
+        return NextResponse.json({ error: "Missing DRIVE_FILE_ID_CANONICALS" }, { status: 500 });
     }
 
     try {
-        // 2. 解析請求主體
-        const { draftSummary, editableSummary } = (await request.json()) as { 
-            draftSummary: string; 
-            editableSummary: string;
-        };
+        // Match the call method: { draftSummary, editableSummary }
+        const { draftSummary, editableSummary } = await request.json();
 
         if (!draftSummary || !editableSummary) {
             return NextResponse.json({ error: "Missing summaries in request body." }, { status: 400 });
         }
 
-        // 3. 獲取 Canonical Bible 內容 (讀取操作)
-        const canonicalBibleJson = await fetchCanonicalFileContent();
+        // 1. Extract Issuer Name (Master) from the final edited summary
+        const issuerName = await GPT_Router.getIssuerName(editableSummary);
+        
+        // 2. Extract Issuer Alias from the original draft summary (what GPT originally saw)
+        const issuerAlias = await GPT_Router.getIssuerName(draftSummary);
 
-        // 4. 呼叫輔助函數，獲取 GPT 判斷結果 (計算操作)
-        const { canonical, alias } = await driveUpdateCanon({
-            canonicalBibleJson,
-            draftSummary,
-            editableSummary
+        // 3. Perform the logic: update master or add alias
+        const result = await GPT_Router.updateCanonicals(CANONICAL_FILE_ID, {
+            issuerName,
+            issuerAlias
         });
 
-        // 5. 決定更新行動，並執行 Drive 寫入操作 (PATCH)
-        if (canonical && alias) {
-            
-            // ✅ 呼叫新的函式名稱
-            const updatedContent = await driveOverwriteCanon({
-                fileId: CANONICAL_FILE_ID,
-                canonical: canonical,
-                alias: alias
-            });
-            
-            console.log(`✅ Canonical update persisted: ${canonical} -> ${alias}. New file size: ${updatedContent.length} bytes.`);
-            
+        if (result.status === "NO_CHANGE") {
             return NextResponse.json({ 
-                status: "UPDATE_PERSISTED", 
-                message: "Canonical update calculated and successfully written to Google Drive.",
-                canonical, 
-                alias 
-            }, { status: 200 });
+                status: "NO_ACTION", 
+                message: "No update required, entry already exists." 
+            });
         }
 
-        // Case 3: No action required
-        console.log("No canonical update required.");
-        return NextResponse.json({ status: "NO_ACTION", message: "No update required." }, { status: 200 });
+        return NextResponse.json({ 
+            status: "UPDATE_PERSISTED", 
+            message: `✅ Bible Updated: Master [${issuerName}] with Alias [${issuerAlias}]`,
+            data: result
+        }, { status: 200 });
 
     } catch (err: any) {
-        console.error("update-issuerCanon route failed:", err.message);
+        console.error("update-issuerCanon failed:", err.message);
         return NextResponse.json({ status: "SERVER_ERROR", error: err.message }, { status: 500 });
     }
 }

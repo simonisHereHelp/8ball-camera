@@ -77,7 +77,7 @@ export const handleSave = async ({
             },
             body: JSON.stringify({
                 draftSummary: draftSummary.trim(),
-                editableSummary: finalSummary,
+                finalSummary: finalSummary,
             }),
             credentials: "include" 
         });
