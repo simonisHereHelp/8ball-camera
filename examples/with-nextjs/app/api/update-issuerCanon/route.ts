@@ -5,9 +5,10 @@ import { GPT_Router } from "@/lib/gptRouter";
 
 export const runtime = "nodejs";
 
-const CANONICAL_FILE_ID = process.env.DRIVE_FILE_ID_CANONICALS;
 
 export async function POST(request: Request) {
+    const CANONICAL_FILE_ID = process.env.DRIVE_FILE_ID_CANONICALS?? "1TF4cl7w8_GG8OyCXy8qDFJB7DqTpiOUV"
+
     if (!CANONICAL_FILE_ID) {
         return NextResponse.json({ error: "Missing DRIVE_FILE_ID_CANONICALS" }, { status: 500 });
     }

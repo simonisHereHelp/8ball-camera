@@ -5,7 +5,6 @@ import { NextResponse } from "next/server";
 import { GPT_Router } from "@/lib/gptRouter";
 
 
-
 export async function POST(req: Request) {
 
   const apiKey = process.env.OPENAI_API_KEY;
@@ -13,7 +12,7 @@ export async function POST(req: Request) {
   const PROMPT_ID = process.env.PROMPT_SUMMARY_JSON_ID ??
   "https://drive.google.com/uc?export=download&id=15Ax2eWZoMxj_WsxMVwxmJaLpOxZ-Fc-o";
 
-  const CANONICAL_FILE_ID = process.env.DRIVE_FILE_ID_CANONICALS; 
+  const CANONICAL_FILE_ID = process.env.DRIVE_FILE_ID_CANONICALS?? "1TF4cl7w8_GG8OyCXy8qDFJB7DqTpiOUV";
 
   try {
 
