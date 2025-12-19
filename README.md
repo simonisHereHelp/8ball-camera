@@ -10,6 +10,9 @@ app/components/image-capture-dialog-mobile/
 ├── GalleryView.tsx                  // Renders Image Gallery/Summary/Save UI
 └── types.ts                         // Shared Interfaces
 
+## 使用GPT ROUTER
+- 簡化PROMPT的生成
+- 智能判讀 summary
 
 ## 更改canonical.JSON 成功
 - canonicals.json 格式簡化
