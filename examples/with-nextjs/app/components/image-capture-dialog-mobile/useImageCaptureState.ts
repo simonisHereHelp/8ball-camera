@@ -233,6 +233,7 @@ export const useImageCaptureState = (
     handleSummarize,
     handleSaveImages,
     handleClose,
+    setCaptureSource: handleSourceChange,
     setEditableSummary,
     setDraftSummary, // Updated
     setShowGallery,
