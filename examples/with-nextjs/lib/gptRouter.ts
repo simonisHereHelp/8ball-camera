@@ -37,6 +37,13 @@ export class GPT_Router {
   }
 
   /**
+   * Fetch arbitrary JSON sources using the same ID/path resolution.
+   */
+  static async fetchJsonSource(source: string, useAuth: boolean = false): Promise<any> {
+    return this._fetchFile(source, useAuth);
+  }
+
+  /**
    * 獲取 System Prompt
    */
   static async getSystemPrompt(promptFileID: string): Promise<string> {

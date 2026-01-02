@@ -33,6 +33,21 @@ export const PROMPT_SET_NAME_SOURCE = resolveJsonSource(
   "prompts_setName.json"
 );
 
+export const PROMPT_DESIGNATED_SUBFOLDER_SOURCE = resolveJsonSource(
+  process.env.PROMPT_DESIGNATED_SUBFOLDER,
+  process.env.PROMPT_DESIGNATED_SUBFOLDER_ID,
+  "prompt_designated_subfolder.json",
+);
+
+export const DRIVE_ACTIVE_SUBFOLDER_SOURCE = resolveJsonSource(
+  process.env.DRIVE_ACTIVE_SUBFOLDER_PATH,
+  process.env.DRIVE_ACTIVE_SUBFOLDER_ID,
+  "drive_active_subfolders.json",
+);
+
+export const DRIVE_FALLBACK_FOLDER_ID =
+  process.env.DRIVE_FALLBACK_FOLDER_ID || process.env.DRIVE_FOLDER_ID;
+
 export const CANONICALS_BIBLE_SOURCE = resolveJsonSource(
   process.env.CANONICALS_BIBLE_JSON_PATH,
   process.env.DRIVE_FILE_ID_CANONICALS,
