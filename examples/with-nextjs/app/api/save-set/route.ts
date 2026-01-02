@@ -3,13 +3,13 @@ import { NextResponse } from "next/server";
 import { Buffer } from "buffer";
 import { driveSaveFiles } from "@/lib/driveSaveFiles";
 import { GPT_Router } from "@/lib/gptRouter";
+import { PROMPT_SET_NAME_SOURCE } from "@/lib/jsonCanonSources";
 
 export const runtime = "nodejs";
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const DRIVE_FOLDER_ID = process.env.DRIVE_FOLDER_ID;
-const CANONICAL_FILE_ID = process.env.DRIVE_FILE_ID_CANONICALS;
-const PROMPT_ID = process.env.PROMPT_SET_NAME_JSON_ID ?? "1srQP_Ekw79v45jgkwgeV67wx6j9OcmII";
+const PROMPT_ID = PROMPT_SET_NAME_SOURCE;
 /**
  * 根據摘要產生檔案名稱標籤
  */

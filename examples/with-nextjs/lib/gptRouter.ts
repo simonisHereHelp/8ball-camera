@@ -1,4 +1,6 @@
 // @/lib/gptRouter.ts
+import fs from "fs/promises";
+import path from "path";
 import { auth } from "@/auth";
 
 export class GPT_Router {
@@ -8,6 +10,13 @@ export class GPT_Router {
   static async _fetchFile(fileID: string, useAuth: boolean = false): Promise<any> {
     if (!fileID) throw new Error("File ID is required");
 
+    const resolvedPath = this._resolveLocalPath(fileID);
+
+    if (resolvedPath) {
+      const fileContent = await fs.readFile(resolvedPath, "utf-8");
+      return JSON.parse(fileContent);
+    }
+
     let url = `https://drive.google.com/uc?export=download&id=${fileID}`;
     const headers: HeadersInit = {};
 
@@ -15,7 +24,7 @@ export class GPT_Router {
       const session = await auth();
       const accessToken = (session as any)?.accessToken;
       if (!accessToken) throw new Error("Missing Google Drive access token");
-      
+
       // 使用 API 格式讀取私有媒體內容
       url = `https://www.googleapis.com/drive/v3/files/${fileID}?alt=media&supportsAllDrives=true`;
       headers["Authorization"] = `Bearer ${accessToken}`;
@@ -23,7 +32,7 @@ export class GPT_Router {
 
     const res = await fetch(url, { headers });
     if (!res.ok) throw new Error(`Fetch file ${fileID} failed (Status: ${res.status})`);
-    
+
     return res.json();
   }
 
@@ -60,16 +69,17 @@ export class GPT_Router {
       const actionNames = bibleData.action?.map((a: any) => a.master) || [];
 
       // 2. 提取「標準名與別名」的對照參考 (用於加強 GPT 的比對能力)
-      // 格式如: {"兆豐": ["兆豐銀行", "Mega Bank"], "勞保局": ["勞工保險局"]}
-      const issuerMapping = bibleData.issuers?.reduce((acc: any, curr: any) => {
-        acc[curr.master] = curr.aliases || [];
-        return acc;
-      }, {}) || {};
+      // 格式如:{"兆豐": ["兆豐銀行", "Mega Bank"], "勞保局": ["勞工保險局"]}
+      const issuerMapping =
+        bibleData.issuers?.reduce((acc: any, curr: any) => {
+          acc[curr.master] = curr.aliases || [];
+          return acc;
+        }, {}) || {};
 
       // 3. 執行替換
       userPrompt = userPrompt
         .replace("{{ISSUER_NAME}}", JSON.stringify(issuerNames))
-        .replace("{{ISSUER_ALIASES}}", JSON.stringify(issuerMapping)) // 新增這行
+        .replace("{{ISSUER_ALIASES}}", JSON.stringify(issuerMapping))
         .replace("{{TYPE_OF_DOC}}", JSON.stringify(typeNames))
         .replace("{{ACTION}}", JSON.stringify(actionNames));
     }
@@ -86,44 +96,55 @@ export class GPT_Router {
   }
 
   /**
-     * Use GPT to extract the "Issuer Name" (the canonical master name) from a summary.
-     */
-    static async getIssuerName(summary: string): Promise<string> {
-      const apiKey = process.env.OPENAI_API_KEY;
-      if (!apiKey) throw new Error("Missing OPENAI_API_KEY");
+   * Use GPT to extract the "Issuer Name" (the canonical master name) from a summary.
+   */
+  static async getIssuerName(summary: string): Promise<string> {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) throw new Error("Missing OPENAI_API_KEY");
 
-      const res = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: "gpt-4o-mini",
-          messages: [
-            { 
-              role: "system", 
-              content: "你是一位精確的實體提取助手。請從提供的摘要中僅提取『寄件單位』或『機構名稱』。只需回傳名稱，不要有標點符號或解釋。如果找不到，請回傳『其他單位』。" 
-            },
-            { role: "user", content: summary },
-          ],
-          temperature: 0,
-        }),
-      });
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content:
+              "你是一位精確的實體提取助手。請從提供的摘要中僅提取『寄件單位』或『機構名稱』。只需回傳名稱，不要有標點符號或解釋。如果找不到，請回傳『其他單位』。",
+          },
+          { role: "user", content: summary },
+        ],
+        temperature: 0,
+      }),
+    });
 
-      const data = await res.json();
-      return data?.choices?.[0]?.message?.content?.trim() || "其他單位";
+    const data = await res.json();
+    return data?.choices?.[0]?.message?.content?.trim() || "其他單位";
+  }
+
+  static async updateCanonicals(
+    fileID: string,
+    {
+      issuerName,
+      issuerAlias,
+    }: {
+      issuerName: string;
+      issuerAlias: string;
+    }
+  ) {
+    const localPath = this._resolveLocalPath(fileID);
+    if (localPath) {
+      throw new Error(
+        "Updating local canonical files is not supported. Provide a Drive file ID via environment variable."
+      );
     }
 
- static async updateCanonicals(fileID: string, {
-    issuerName,
-    issuerAlias
-  }: {
-    issuerName: string;
-    issuerAlias: string;
-  }) {
     const bibleData = await this._fetchFile(fileID, true);
-    
+
     const masterEntry = bibleData.issuers.find((i: any) => i.master === issuerName);
 
     if (masterEntry) {
@@ -137,7 +158,7 @@ export class GPT_Router {
       // New Master
       bibleData.issuers.push({
         master: issuerName,
-        aliases: issuerAlias !== issuerName ? [issuerAlias] : []
+        aliases: issuerAlias !== issuerName ? [issuerAlias] : [],
       });
     }
 
@@ -159,5 +180,10 @@ export class GPT_Router {
     return { status: "UPDATED", issuerName, issuerAlias };
   }
 
+  private static _resolveLocalPath(source: string) {
+    const looksLikeDriveId = /^[a-zA-Z0-9_-]{10,}$/.test(source) && !source.includes("/");
+    if (looksLikeDriveId || source.startsWith("http")) return null;
 
+    return path.isAbsolute(source) ? source : path.join(process.cwd(), source);
+  }
 }

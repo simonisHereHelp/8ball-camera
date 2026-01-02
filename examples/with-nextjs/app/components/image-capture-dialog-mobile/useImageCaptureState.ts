@@ -1,10 +1,15 @@
 // app/components/image-capture-dialog-mobile/useImageCaptureState.ts
 
-import { useRef, useState, useEffect, useCallback } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 import type { WebCameraHandler, FacingMode } from "@shivantra/react-web-camera";
 import { useSession } from "next-auth/react";
 import { handleSave } from "@/lib/handleSave"; // Assuming path is correct
 import { handleSummary } from "@/lib/handleSummary"; // Assuming path is correct
+import {
+  CaptureError,
+  DEFAULTS,
+  normalizeCapture,
+} from "../shared/normalizeCapture";
 import type { Image, State, Actions } from "./types";
 
 interface UseImageCaptureState {
@@ -15,12 +20,17 @@ interface UseImageCaptureState {
 
 export const useImageCaptureState = (
   onOpenChange?: (open: boolean) => void,
+  initialSource: "camera" | "photos" = "camera",
 ): UseImageCaptureState => {
   const [images, setImages] = useState<Image[]>([]);
   const [facingMode, setFacingMode] = useState<FacingMode>("environment");
   const [isSaving, setIsSaving] = useState(false);
+  const [isProcessingCapture, setIsProcessingCapture] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
   const [cameraError, setCameraError] = useState(false);
+  const [captureSource, setCaptureSource] = useState<"camera" | "photos">(
+    initialSource,
+  );
   
   // RENAMED: summary -> draftSummary
   const [draftSummary, setDraftSummary] = useState("");
@@ -33,6 +43,10 @@ export const useImageCaptureState = (
 
   const cameraRef = useRef<WebCameraHandler>(null);
   const { data: session } = useSession();
+
+  useEffect(() => {
+    setCaptureSource(initialSource);
+  }, [initialSource]);
 
   // --- Callbacks and Handlers ---
 
@@ -62,29 +76,72 @@ export const useImageCaptureState = (
     setSaveMessage("");
     setShowSummaryOverlay(false);
     setShowGallery(false);
+    setCaptureSource(initialSource);
+    setIsProcessingCapture(false);
     onOpenChange?.(false);
-  }, [images.length, isSaving, onOpenChange]);
+  }, [images.length, initialSource, isSaving, onOpenChange]);
+
+  const ingestFile = useCallback(
+    async (file: File, source: "camera" | "photos", preferredName?: string) => {
+      setIsProcessingCapture(true);
+      try {
+        const { file: normalizedFile, previewUrl } = await normalizeCapture(
+          file,
+          source,
+          {
+            maxFileSize: DEFAULTS.MAX_FILE_SIZE,
+            preferredName,
+          },
+        );
+
+        // Clear previous state after a new capture
+        setSummaryImageUrl(null);
+        setDraftSummary("");
+        setEditableSummary("");
+        setError("");
+        setSaveMessage("");
+        setShowGallery(false);
+        setShowSummaryOverlay(false);
+        setImages((prev) => [...prev, { url: previewUrl, file: normalizedFile }]);
+      } catch (err) {
+        console.error("Capture error:", err);
+        if (err instanceof CaptureError) {
+          setError(err.message);
+        } else {
+          setError("Unable to process the image. Please try again.");
+        }
+      } finally {
+        setIsProcessingCapture(false);
+      }
+    },
+    [],
+  );
 
   const handleCapture = useCallback(async () => {
     if (!cameraRef.current) return;
     try {
       const file = await cameraRef.current.capture();
       if (file) {
-        const url = URL.createObjectURL(file);
-        // Clear previous state after a new capture
-        setSummaryImageUrl(null);
-        setDraftSummary(""); // Updated
-        setEditableSummary(""); // Reset editableSummary on new capture
-        setError("");
-        setSaveMessage("");
-        setShowGallery(false);
-        setShowSummaryOverlay(false);
-        setImages((prev) => [...prev, { url, file }]);
+        await ingestFile(file, "camera", `capture-${Date.now()}.jpeg`);
       }
     } catch (err) {
       console.error("Capture error:", err);
+      setError("Unable to access camera capture.");
     }
-  }, []);
+  }, [ingestFile, setError]);
+
+  const handleAlbumSelect = useCallback(
+    async (files: FileList | null) => {
+      if (!files || files.length === 0) {
+        setError("No photo selected.");
+        return;
+      }
+
+      const file = files[0];
+      await ingestFile(file, "photos");
+    },
+    [ingestFile],
+  );
 
   const handleCameraSwitch = useCallback(async () => {
     if (!cameraRef.current) return;
@@ -96,6 +153,17 @@ export const useImageCaptureState = (
       console.error("Camera switch error:", err);
     }
   }, [facingMode]);
+
+  const handleSourceChange = useCallback(
+    (source: "camera" | "photos") => {
+      setCaptureSource(source);
+      setShowGallery(false);
+      setError("");
+      setSaveMessage("");
+      setCameraError(false);
+    },
+    [],
+  );
 
   const handleSummarize = useCallback(async () => {
     setSaveMessage("");
@@ -156,8 +224,10 @@ export const useImageCaptureState = (
     images,
     facingMode,
     isSaving,
+    isProcessingCapture,
     showGallery,
     cameraError,
+    captureSource,
     draftSummary, // Updated
     editableSummary,
     summaryImageUrl,
@@ -169,14 +239,17 @@ export const useImageCaptureState = (
   const actions: Actions = {
     deleteImage,
     handleCapture,
+    handleAlbumSelect,
     handleCameraSwitch,
     handleSummarize,
     handleSaveImages,
     handleClose,
+    setCaptureSource: handleSourceChange,
     setEditableSummary,
     setDraftSummary, // Updated
     setShowGallery,
     setCameraError,
+    setError,
   };
 
   return { state, actions, cameraRef };

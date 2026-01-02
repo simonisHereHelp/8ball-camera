@@ -26,13 +26,15 @@ function useIsMobile() {
 }
 
 function Content() {
-  const [open, setOpen] = useState(false);
+  const [dialogSource, setDialogSource] = useState<"camera" | "photos" | null>(
+    null,
+  );
   const isMobile = useIsMobile();
 
   const { data: session } = useSession();
 
-  const handleOpen = () => setOpen(true);
-  const handleClose = () => setOpen(false);
+  const handleOpen = (source: "camera" | "photos") => setDialogSource(source);
+  const handleClose = () => setDialogSource(null);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
@@ -70,13 +72,22 @@ function Content() {
           <div className="bg-white dark:bg-slate-800 h-full flex items-center justify-center rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-8 md:p-12">
             <div className="text-center">
               <div className="space-y-4">
-                <Button
-                  onClick={handleOpen}
-                  className="h-12 bg-blue-600 hover:bg-blue-700 text-white !px-8 !py-3 text-lg font-medium rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 cursor-pointer"
-                >
-                  <Camera className="w-5 h-5 mr-2" />
-                  Launch Camera
-                </Button>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                  <Button
+                    onClick={() => handleOpen("camera")}
+                    className="h-12 bg-blue-600 hover:bg-blue-700 text-white !px-8 !py-3 text-lg font-medium rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 cursor-pointer"
+                  >
+                    <Camera className="w-5 h-5 mr-2" />
+                    Launch Camera
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => handleOpen("photos")}
+                    className="h-12 !px-8 !py-3 text-lg font-medium rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 cursor-pointer"
+                  >
+                    Photo Album
+                  </Button>
+                </div>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
                   {isMobile
                     ? "Mobile-optimized interface"
@@ -90,13 +101,15 @@ function Content() {
 
       {isMobile ? (
         <ImageCaptureDialogMobile
-          open={open}
+          open={dialogSource !== null}
           onOpenChange={handleClose}
+          initialSource={dialogSource ?? "camera"}
         />
       ) : (
         <ImageCaptureDialogMobile
-          open={open}
+          open={dialogSource !== null}
           onOpenChange={handleClose}
+          initialSource={dialogSource ?? "camera"}
         />
       )}
     </div>
