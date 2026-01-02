@@ -2,12 +2,13 @@
 
 import { NextResponse } from "next/server";
 import { GPT_Router } from "@/lib/gptRouter";
+import { CANONICALS_BIBLE_SOURCE } from "@/lib/jsonCanonSources";
 
 export const runtime = "nodejs";
 
 
 export async function POST(request: Request) {
-    const CANONICAL_FILE_ID = process.env.DRIVE_FILE_ID_CANONICALS?? "1TF4cl7w8_GG8OyCXy8qDFJB7DqTpiOUV"
+    const CANONICAL_FILE_ID = CANONICALS_BIBLE_SOURCE;
 
     if (!CANONICAL_FILE_ID) {
         return NextResponse.json({ error: "Missing DRIVE_FILE_ID_CANONICALS" }, { status: 500 });
