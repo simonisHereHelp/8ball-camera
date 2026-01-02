@@ -1,0 +1,19 @@
+{
+  "subfolders": [
+    {
+      "topic": "BanksAndCards",
+      "keywords": ["bank", "credit card", "statement"],
+      "description": "Finance, banking, and card-related documents"
+    },
+    {
+      "topic": "Travel",
+      "keywords": ["flight", "hotel", "boarding"],
+      "description": "Travel bookings and confirmations"
+    },
+    {
+      "topic": "Insurance",
+      "keywords": ["policy", "claim", "premium"],
+      "description": "Insurance policies, claims, and billing"
+    }
+  ]
+}

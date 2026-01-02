@@ -3,15 +3,19 @@
 import { NextResponse } from "next/server";
 
 import { GPT_Router } from "@/lib/gptRouter";
+import {
+  CANONICALS_BIBLE_SOURCE,
+  PROMPT_SUMMARY_SOURCE,
+} from "@/lib/jsonCanonSources";
 
 
 export async function POST(req: Request) {
 
   const apiKey = process.env.OPENAI_API_KEY;
 
-  const PROMPT_ID = process.env.PROMPT_SUMMARY_JSON_ID ?? "15Ax2eWZoMxj_WsxMVwxmJaLpOxZ-Fc-o";
+  const PROMPT_ID = PROMPT_SUMMARY_SOURCE;
 
-  const CANONICAL_FILE_ID = process.env.DRIVE_FILE_ID_CANONICALS?? "1TF4cl7w8_GG8OyCXy8qDFJB7DqTpiOUV";
+  const CANONICAL_FILE_ID = CANONICALS_BIBLE_SOURCE;
 
   try {
 
