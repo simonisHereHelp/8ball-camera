@@ -10,7 +10,8 @@ import {
   DEFAULTS,
   normalizeCapture,
 } from "../shared/normalizeCapture";
-import type { Image, State, Actions } from "./types";
+import type { Image, State, Actions, IssuerCanonEntry } from "./types";
+import { applyIssuerCanonToSummary } from "../shared/issuerCanonUtils";
 
 interface UseImageCaptureState {
   state: State;
@@ -40,6 +41,12 @@ export const useImageCaptureState = (
   const [error, setError] = useState("");
   const [saveMessage, setSaveMessage] = useState("");
   const [showSummaryOverlay, setShowSummaryOverlay] = useState(false);
+  const [issuerCanons, setIssuerCanons] = useState<IssuerCanonEntry[]>([]);
+  const [issuerCanonsLoading, setIssuerCanonsLoading] = useState(false);
+  const [issuerCanonsError, setIssuerCanonsError] = useState("");
+  const [selectedIssuerCanon, setSelectedIssuerCanon] = useState<string | null>(
+    null,
+  );
 
   const cameraRef = useRef<WebCameraHandler>(null);
   const { data: session } = useSession();
@@ -47,6 +54,28 @@ export const useImageCaptureState = (
   useEffect(() => {
     setCaptureSource(initialSource);
   }, [initialSource]);
+
+  useEffect(() => {
+    if (!draftSummary) return;
+
+    const fetchIssuerCanons = async () => {
+      setIssuerCanonsLoading(true);
+      setIssuerCanonsError("");
+      try {
+        const res = await fetch("/api/issuer-canons");
+        if (!res.ok) throw new Error("Failed to load issuer canons");
+        const data: IssuerCanonEntry[] = await res.json();
+        setIssuerCanons(data);
+      } catch (err: any) {
+        console.error("issuer canons fetch error", err);
+        setIssuerCanonsError("Unable to load issuer canon list.");
+      } finally {
+        setIssuerCanonsLoading(false);
+      }
+    };
+
+    fetchIssuerCanons();
+  }, [draftSummary]);
 
   // --- Callbacks and Handlers ---
 
@@ -78,6 +107,9 @@ export const useImageCaptureState = (
     setShowGallery(false);
     setCaptureSource(initialSource);
     setIsProcessingCapture(false);
+    setIssuerCanons([]);
+    setIssuerCanonsError("");
+    setSelectedIssuerCanon(null);
     onOpenChange?.(false);
   }, [images.length, initialSource, isSaving, onOpenChange]);
 
@@ -161,6 +193,15 @@ export const useImageCaptureState = (
       setError("");
       setSaveMessage("");
       setCameraError(false);
+      setSelectedIssuerCanon(null);
+    },
+    [],
+  );
+
+  const applyIssuerCanon = useCallback(
+    (entry: IssuerCanonEntry) => {
+      setSelectedIssuerCanon(entry.master);
+      setEditableSummary((prev) => applyIssuerCanonToSummary(prev, entry));
     },
     [],
   );
@@ -173,7 +214,7 @@ export const useImageCaptureState = (
     const setSummaries = (newSummary: string) => {
       setDraftSummary(newSummary);
       setEditableSummary(newSummary); // Initializes editableSummary = draftSummary
-    }
+    };
     
     // Pass the custom setter to the external utility
     await handleSummary({
@@ -234,6 +275,10 @@ export const useImageCaptureState = (
     error,
     saveMessage,
     showSummaryOverlay,
+    issuerCanons,
+    issuerCanonsLoading,
+    issuerCanonsError,
+    selectedIssuerCanon,
   };
 
   const actions: Actions = {
@@ -250,6 +295,7 @@ export const useImageCaptureState = (
     setShowGallery,
     setCameraError,
     setError,
+    applyIssuerCanon,
   };
 
   return { state, actions, cameraRef };

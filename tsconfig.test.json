@@ -14,6 +14,8 @@
   },
   "include": [
     "examples/with-nextjs/app/components/shared/normalizeCapture.ts",
-    "examples/with-nextjs/app/components/shared/normalizeCapture.test.ts"
+    "examples/with-nextjs/app/components/shared/normalizeCapture.test.ts",
+    "examples/with-nextjs/app/components/shared/issuerCanonUtils.ts",
+    "examples/with-nextjs/app/components/shared/issuerCanonUtils.test.ts"
   ]
 }

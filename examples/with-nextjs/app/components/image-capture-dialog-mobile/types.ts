@@ -21,7 +21,16 @@ export interface State {
   summaryImageUrl: string | null;
   error: string;
   saveMessage: string;
-  showSummaryOverlay: boolean; 
+  showSummaryOverlay: boolean;
+  issuerCanons: IssuerCanonEntry[];
+  issuerCanonsLoading: boolean;
+  issuerCanonsError: string;
+  selectedIssuerCanon: string | null;
+}
+
+export interface IssuerCanonEntry {
+  master: string;
+  aliases?: string[];
 }
 
 export interface Actions {
@@ -39,4 +48,5 @@ export interface Actions {
   setShowGallery: (show: boolean) => void;
   setCameraError: (error: boolean) => void;
   setError: (message: string) => void;
+  applyIssuerCanon: (entry: IssuerCanonEntry) => void;
 }
