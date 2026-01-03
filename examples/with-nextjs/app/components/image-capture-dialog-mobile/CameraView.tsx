@@ -239,7 +239,11 @@ export function CameraView({ state, actions, cameraRef }: CameraViewProps) {
       )}
       {saveMessage && (
         <div className="px-4 pb-4">
-          <p className="text-sm text-emerald-300">{saveMessage}</p>
+          <div className="text-sm text-emerald-300 space-y-1">
+            {saveMessage.split("\n").map((line, idx) => (
+              <p key={`${line}-${idx}`}>{line}</p>
+            ))}
+          </div>
         </div>
       )}
 

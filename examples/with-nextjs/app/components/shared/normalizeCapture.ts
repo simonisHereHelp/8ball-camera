@@ -26,6 +26,8 @@ const createPreviewUrl = (file: File) => {
   return `preview://${file.name}`;
 };
 
+const PHOTO_MAX_DIMENSION = 1600;
+
 async function maybeNormalizeOrientation(file: File): Promise<File> {
   // Some browsers support EXIF-based orientation handling via createImageBitmap.
   if (typeof createImageBitmap !== "function") return file;
@@ -61,6 +63,51 @@ async function maybeNormalizeOrientation(file: File): Promise<File> {
   }
 }
 
+async function maybeResizeForAlbumSessions(file: File): Promise<File> {
+  if (typeof createImageBitmap !== "function") return file;
+
+  try {
+    const bitmap = await createImageBitmap(file);
+    const { width, height } = bitmap;
+
+    if (width <= PHOTO_MAX_DIMENSION && height <= PHOTO_MAX_DIMENSION) {
+      bitmap.close?.();
+      return file;
+    }
+
+    const scale = Math.min(
+      PHOTO_MAX_DIMENSION / width,
+      PHOTO_MAX_DIMENSION / height,
+    );
+    const targetWidth = Math.round(width * scale);
+    const targetHeight = Math.round(height * scale);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return file;
+
+    ctx.drawImage(bitmap, 0, 0, targetWidth, targetHeight);
+    bitmap.close?.();
+
+    const resizedBlob: Blob | null = await new Promise((resolve) =>
+      canvas.toBlob(resolve, file.type, 0.92),
+    );
+
+    if (!resizedBlob) return file;
+
+    return new File([resizedBlob], file.name, {
+      type: file.type,
+      lastModified: Date.now(),
+    });
+  } catch (err) {
+    console.warn("Album resize skipped", err);
+    return file;
+  }
+}
+
 export async function normalizeCapture(
   file: File,
   source: CaptureSource,
@@ -88,6 +135,10 @@ export async function normalizeCapture(
       lastModified: Date.now(),
     }),
   );
+
+  if (source === "photos") {
+    workingFile = await maybeResizeForAlbumSessions(workingFile);
+  }
 
   const previewUrl = createPreviewUrl(workingFile);
 

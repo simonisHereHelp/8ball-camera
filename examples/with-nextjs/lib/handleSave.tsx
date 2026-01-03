@@ -29,7 +29,11 @@ export const handleSave = async ({
   selectedCanon?: SelectedCanonMeta | null;
   setIsSaving: (isSaving: boolean) => void;
   onError?: (message: string) => void;
-  onSuccess?: (setName: string) => void;
+  onSuccess?: (args: {
+    setName: string;
+    targetFolderId?: string;
+    topic?: string | null;
+  }) => void;
 }) => {
   // nothing to save
   if (!images.length) return;
@@ -84,7 +88,7 @@ export const handleSave = async ({
     }
 
     const json = (await response.json().catch(() => null)) as
-      | { setName?: string }
+      | { setName?: string; targetFolderId?: string; topic?: string | null }
       | null;
 
     // 2️⃣ Canonical Update: ping /api/update-issuerCanon with summaries
@@ -115,7 +119,11 @@ export const handleSave = async ({
 
     // 🔔 let the UI know the final server-side setName (if provided)
     if (onSuccess) {
-      onSuccess(json?.setName ?? "");
+      onSuccess({
+        setName: json?.setName ?? "",
+        targetFolderId: json?.targetFolderId,
+        topic: json?.topic,
+      });
     }
     
 
