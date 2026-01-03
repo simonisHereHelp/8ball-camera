@@ -5,23 +5,19 @@ export interface IssuerCanonEntry {
 
 /**
  * Apply an issuer canon selection to the editable summary text.
- * - Appends a short note with the canonical issuer name (and aliases if present).
- * - Avoids duplicating the same canon insertion twice in a row.
+ * - Replaces the first line with a static issuer header (e.g., "單位： 勞保局").
+ * - Preserves the rest of the summary body unchanged.
  */
 export function applyIssuerCanonToSummary(
   currentSummary: string,
   entry: IssuerCanonEntry,
 ): string {
-  const insertion = `Issuer Canon: ${entry.master}${
-    entry.aliases?.length ? ` (aliases: ${entry.aliases.join(", ")})` : ""
-  }`;
+  const header = `單位： ${entry.master}`;
+  if (!currentSummary.trim()) return header;
 
-  const trimmed = currentSummary.trim();
+  const lines = currentSummary.split(/\r?\n/);
+  const [, ...rest] = lines;
+  const body = rest.join("\n");
 
-  if (!trimmed) return insertion;
-
-  const alreadyContains = trimmed.includes(entry.master);
-  if (alreadyContains) return trimmed;
-
-  return `${trimmed}\n\n${insertion}`;
+  return body.trim() ? `${header}\n${body}` : header;
 }

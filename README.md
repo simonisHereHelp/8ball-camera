@@ -116,6 +116,32 @@ Set `DRIVE_ACTIVE_SUBFOLDER_PATH` and `PROMPT_DESIGNATED_SUBFOLDER` to these fil
 ```
 
 Set `DRIVE_ACTIVE_SUBFOLDER_PATH` and `PROMPT_DESIGNATED_SUBFOLDER` to these files (or their Drive IDs), and optionally set `DRIVE_FALLBACK_FOLDER_ID` when you want a folder other than `DRIVE_FOLDER_ID` as the default.
+```json
+{
+  "subfolders": [
+    {
+      "topic": "BankAndCard",
+      "keywords": ["bank", "credit card", "statement"],
+      "description": "Finance, banking, and card-related documents"
+    },
+    {
+      "topic": "Travel",
+      "keywords": ["flight", "hotel", "boarding"],
+      "description": "Travel bookings and confirmations"
+    }
+  ]
+}
+```
+
+`prompt_designated_subfolder.json`
+```json
+{
+  "system": "Classify the document summary into one of the provided topics. Answer with only the topic string.",
+  "user": "Topics: {{TOPICS}}\nSummary: {{SUMMARY}}\nReturn the best matching topic from the list."
+}
+```
+
+Set `DRIVE_ACTIVE_SUBFOLDER_PATH` and `PROMPT_DESIGNATED_SUBFOLDER` to these files (or their Drive IDs), and optionally set `DRIVE_FALLBACK_FOLDER_ID` when you want a folder other than `DRIVE_FOLDER_ID` as the default.
 - `/api/save-set`: uses `prompts_setName.json` for naming and uploads all files to Drive.
 - `/api/update-issuerCanon`: reads/writes `canonicals_bible.json` (Drive only) to add masters/aliases after saves.
 

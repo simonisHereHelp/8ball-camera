@@ -5,20 +5,26 @@ import { applyIssuerCanonToSummary } from "./issuerCanonUtils.js";
 
 const sampleEntry = { master: "Bank & Card", aliases: ["Bank", "Card"] };
 
-test("adds issuer canon to empty summary", () => {
+test("sets issuer header on empty summary", () => {
   const result = applyIssuerCanonToSummary("", sampleEntry);
-  assert.ok(result.includes("Bank & Card"));
+  assert.equal(result, "單位： Bank & Card");
 });
 
-test("appends issuer canon to existing summary", () => {
-  const base = "Existing summary.";
+test("replaces first line and keeps body", () => {
+  const base = "Old heading\nLine two\nLine three";
   const result = applyIssuerCanonToSummary(base, sampleEntry);
-  assert.ok(result.startsWith(base));
-  assert.ok(result.includes("aliases: Bank, Card"));
+  const lines = result.split("\n");
+
+  assert.equal(lines[0], "單位： Bank & Card");
+  assert.deepEqual(lines.slice(1), ["Line two", "Line three"]);
 });
 
-test("avoids duplicate insertions", () => {
-  const once = applyIssuerCanonToSummary("Existing", sampleEntry);
-  const twice = applyIssuerCanonToSummary(once, sampleEntry);
-  assert.equal(twice, once);
+test("subsequent selections overwrite header only", () => {
+  const initial = "First line\nBody";
+  const first = applyIssuerCanonToSummary(initial, sampleEntry);
+  const secondEntry = { master: "Insurance Bureau" };
+  const second = applyIssuerCanonToSummary(first, secondEntry);
+
+  assert.equal(second.split("\n")[0], "單位： Insurance Bureau");
+  assert.ok(second.includes("Body"));
 });
