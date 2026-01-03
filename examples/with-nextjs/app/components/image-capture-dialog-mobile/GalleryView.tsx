@@ -116,7 +116,7 @@ export function GalleryView({ state, actions }: GalleryViewProps) {
                       type="button"
                       onClick={() => applyIssuerCanon(issuer)}
                       className={`w-full text-left text-xs rounded-md px-2 py-2 border transition-colors ${
-                        selectedIssuerCanon === issuer.master
+                        selectedIssuerCanon?.name === issuer.master
                           ? "bg-blue-500/30 border-blue-400 text-blue-100"
                           : "bg-white/5 border-white/10 text-blue-50 hover:bg-white/10"
                       }`}

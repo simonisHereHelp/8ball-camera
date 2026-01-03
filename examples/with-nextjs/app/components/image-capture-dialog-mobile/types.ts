@@ -25,7 +25,7 @@ export interface State {
   issuerCanons: IssuerCanonEntry[];
   issuerCanonsLoading: boolean;
   issuerCanonsError: string;
-  selectedIssuerCanon: string | null;
+  selectedIssuerCanon: { name: string; selectionId: number } | null;
 }
 
 export interface IssuerCanonEntry {

@@ -44,9 +44,9 @@ export const useImageCaptureState = (
   const [issuerCanons, setIssuerCanons] = useState<IssuerCanonEntry[]>([]);
   const [issuerCanonsLoading, setIssuerCanonsLoading] = useState(false);
   const [issuerCanonsError, setIssuerCanonsError] = useState("");
-  const [selectedIssuerCanon, setSelectedIssuerCanon] = useState<string | null>(
-    null,
-  );
+  const [selectedIssuerCanon, setSelectedIssuerCanon] = useState<
+    { name: string; selectionId: number } | null
+  >(null);
 
   const cameraRef = useRef<WebCameraHandler>(null);
   const { data: session } = useSession();
@@ -200,7 +200,8 @@ export const useImageCaptureState = (
 
   const applyIssuerCanon = useCallback(
     (entry: IssuerCanonEntry) => {
-      setSelectedIssuerCanon(entry.master);
+      // Allow repeat selections of the same issuer without locking the button
+      setSelectedIssuerCanon({ name: entry.master, selectionId: Date.now() });
       setEditableSummary((prev) => applyIssuerCanonToSummary(prev, entry));
     },
     [],
@@ -250,9 +251,15 @@ export const useImageCaptureState = (
       editableSummary: finalSummary, // Edited and final content
       setIsSaving,
       onError: setError,
-      onSuccess: (savedSetName) => {
+      onSuccess: ({ setName: savedSetName, targetFolderId, topic }) => {
         setShowGallery(false); // Close gallery after success
-        setSaveMessage(`Saved as: "${savedSetName}". ✅`);
+        const folderLabel =
+          topic || targetFolderId?.split("/").pop() || targetFolderId || "";
+        const pathLine = folderLabel
+          ? `path: ${folderLabel} ✅`
+          : "path: (default) ✅";
+        const saveLine = `save as: "${savedSetName}" ✅`;
+        setSaveMessage(`${pathLine}\n${saveLine}`);
         setImages([]); // Clear images after save
         setDraftSummary("");
         setEditableSummary("");
