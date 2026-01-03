@@ -16,6 +16,7 @@ import {
   fetchIssuerCanonList,
   type IssuerCanonEntry,
 } from "./issuerCanonUtils";
+import { playSuccessChime } from "./soundEffects";
 
 interface UseImageCaptureState {
   state: State;
@@ -201,6 +202,7 @@ export const useImageCaptureState = (
     // After summarize finishes, go straight to gallery if successful
     if (didSummarize && images.length > 0) {
       setShowGallery(true);
+      playSuccessChime();
     }
   }, [images]);
 
@@ -270,6 +272,7 @@ export const useImageCaptureState = (
         setDraftSummary("");
         setEditableSummary("");
         setSelectedCanon(null);
+        playSuccessChime();
       },
     });
   // Added draftSummary and editableSummary to dependencies
