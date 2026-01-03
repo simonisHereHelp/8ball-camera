@@ -49,7 +49,7 @@ export function CameraView({ state, actions, cameraRef }: CameraViewProps) {
   return (
     <>
       {/* Camera View Area */}
-      <div className="flex-1 relative p-0.5">
+      <div className="flex-1 relative p-0.5 min-h-0">
         {cameraError && isCameraSelected ? (
           <div className="flex flex-col items-center justify-center w-full h-full text-white/50">
             <CameraOff className="w-12 h-12 mb-4" />
@@ -78,12 +78,12 @@ export function CameraView({ state, actions, cameraRef }: CameraViewProps) {
         )}
 
         {!isCameraSelected && (
-          <div className="w-full h-full rounded-lg overflow-hidden bg-black relative flex flex-col">
+          <div className="w-full h-full rounded-lg overflow-hidden bg-black relative flex items-center justify-center">
             {latestImage ? (
               <img
                 src={latestImage.url || "/placeholder.svg"}
                 alt="Selected from device"
-                className="w-full h-full object-cover"
+                className="max-h-full max-w-full object-contain"
               />
             ) : (
               <div className="flex-1 flex flex-col items-center justify-center text-white/60 gap-2">
