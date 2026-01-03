@@ -28,19 +28,21 @@ test("fetchIssuerCanonList returns issuers from API payload", async () => {
 });
 
 test("applyCanonToSummary seeds empty summary with canon and draft", () => {
-  const draftSummary = "Draft text";
+  const draftSummary = "Existing heading\nBody text";
   const updated = applyCanonToSummary({
     canon: sampleCanon,
     currentSummary: "",
     draftSummary,
   });
 
-  assert.equal(updated.startsWith("Issuer: Mega Bank"), true);
-  assert.equal(updated.includes(draftSummary), true);
+  assert.equal(
+    updated,
+    "單位: Mega Bank\nExisting heading\nBody text",
+  );
 });
 
 test("applyCanonToSummary avoids duplicating existing canon", () => {
-  const existing = "Issuer: Mega Bank (aliases: Mega, MG)\nExisting text";
+  const existing = "單位: Mega Bank\nExisting text";
   const updated = applyCanonToSummary({
     canon: sampleCanon,
     currentSummary: existing,
@@ -53,12 +55,38 @@ test("applyCanonToSummary avoids duplicating existing canon", () => {
 test("applyCanonToSummary prepends canon when missing", () => {
   const updated = applyCanonToSummary({
     canon: sampleCanon,
-    currentSummary: "Other summary line",
+    currentSummary: "Other summary line\nSecond line",
     draftSummary: "",
   });
 
   assert.equal(
     updated,
-    "Issuer: Mega Bank (aliases: Mega, MG)\nOther summary line",
+    "單位: Mega Bank\nOther summary line\nSecond line",
+  );
+});
+
+test("applyCanonToSummary replaces older registry lines", () => {
+  const updated = applyCanonToSummary({
+    canon: { master: "New Canon" },
+    currentSummary: "單位: Old Canon\nExisting text",
+    draftSummary: "單位: Older Canon\nDraft body",
+  });
+
+  assert.equal(
+    updated,
+    "單位: New Canon\nExisting text",
+  );
+});
+
+test("applyCanonToSummary keeps existing spacing intact", () => {
+  const updated = applyCanonToSummary({
+    canon: sampleCanon,
+    currentSummary: "Lead line\n\nDetails below",
+    draftSummary: "",
+  });
+
+  assert.equal(
+    updated,
+    "單位: Mega Bank\nLead line\n\nDetails below",
   );
 });

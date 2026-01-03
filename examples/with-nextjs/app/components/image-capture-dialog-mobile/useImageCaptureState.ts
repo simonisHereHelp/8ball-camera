@@ -190,7 +190,7 @@ export const useImageCaptureState = (
     }
     
     // Pass the custom setter to the external utility
-    await handleSummary({
+    const didSummarize = await handleSummary({
       images,
       setIsSaving,
       setSummary: setSummaries, // Utility calls this to set the summary content
@@ -198,11 +198,11 @@ export const useImageCaptureState = (
       setShowSummaryOverlay,
       setError,
     });
-    // After summarize finishes, go straight to gallery if no error
-    if (images.length > 0 && !error) {
+    // After summarize finishes, go straight to gallery if successful
+    if (didSummarize && images.length > 0) {
       setShowGallery(true);
     }
-  }, [images, error]);
+  }, [images]);
 
   const refreshCanons = useCallback(async () => {
     if (issuerCanonsLoading) return;
@@ -259,7 +259,7 @@ export const useImageCaptureState = (
     await handleSave({
       images,
       draftSummary, // Original AI draft
-      editableSummary: finalSummary, // Edited and final content
+      finalSummary, // Edited and final content
       selectedCanon,
       setIsSaving,
       onError: setError,

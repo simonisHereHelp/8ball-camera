@@ -36,22 +36,27 @@ export const applyCanonToSummary = ({
   currentSummary: string;
   draftSummary: string;
 }): string => {
-  const aliasText = canon.aliases?.length
-    ? ` (aliases: ${canon.aliases.join(", ")})`
-    : "";
-  const canonLine = `Issuer: ${canon.master}${aliasText}`.trim();
-  const trimmedCurrent = currentSummary.trim();
+  const canonLine = `單位: ${canon.master}`;
+  const stripCanonLines = (text: string) =>
+    text
+      .split(/\r?\n/)
+      .filter((line) => !/^\s*單位\s*:/u.test(line.trim()))
+      .map((line) => line.replace(/\s+$/u, ""));
 
-  if (!trimmedCurrent) {
-    const draftPortion = draftSummary.trim();
-    return draftPortion ? `${canonLine}\n${draftPortion}` : canonLine;
+  // Prefer the current editable text; fall back to the original draft when empty.
+  const baseLines =
+    currentSummary.trim().length > 0
+      ? stripCanonLines(currentSummary)
+      : stripCanonLines(draftSummary);
+
+  const hasContent = baseLines.some((line) => line.trim().length > 0);
+
+  if (!hasContent) {
+    return canonLine;
   }
 
-  if (trimmedCurrent.includes(canon.master)) {
-    return trimmedCurrent;
-  }
-
-  return `${canonLine}\n${trimmedCurrent}`;
+  // Always place the selected canon on the first line while keeping the rest of the content.
+  return [canonLine, ...baseLines].join("\n");
 };
 
 export type { IssuerCanonEntry };

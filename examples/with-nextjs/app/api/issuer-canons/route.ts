@@ -13,10 +13,7 @@ export async function GET() {
       );
     }
 
-    const bibleData = await GPT_Router.fetchJsonSource(
-      CANONICALS_BIBLE_SOURCE,
-      true,
-    );
+    const bibleData = await GPT_Router._fetchFile(CANONICALS_BIBLE_SOURCE);
     const issuers = bibleData?.issuers ?? [];
 
     return NextResponse.json({ issuers });

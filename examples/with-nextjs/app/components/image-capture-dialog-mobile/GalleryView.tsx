@@ -57,11 +57,11 @@ export function GalleryView({ state, actions }: GalleryViewProps) {
         <div className="grid grid-cols-2 gap-4">
           {images.map((image, index) => (
             <div key={index} className="relative group">
-              <div className="aspect-square rounded-xl overflow-hidden border border-white/20">
+              <div className="aspect-square rounded-xl overflow-hidden border border-white/20 bg-black/60 flex items-center justify-center">
                 <img
                   src={image.url || "/placeholder.svg"}
                   alt={`Photo ${index + 1}`}
-                  className="w-full h-full object-cover"
+                  className="max-h-full max-w-full object-contain"
                 />
               </div>
               <Button

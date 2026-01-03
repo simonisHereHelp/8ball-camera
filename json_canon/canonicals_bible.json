@@ -1,0 +1,10 @@
+{
+  "issuers": [
+    {
+      "master": "國民年金保險",
+      "aliases": ["國保", "勞保局"]
+    }
+  ],
+  "typeOfDoc": [],
+  "action": []
+}
