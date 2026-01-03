@@ -59,6 +59,28 @@ export const useImageCaptureState = (
     setCaptureSource(initialSource);
   }, [initialSource]);
 
+  useEffect(() => {
+    if (!draftSummary) return;
+
+    const fetchIssuerCanons = async () => {
+      setIssuerCanonsLoading(true);
+      setIssuerCanonsError("");
+      try {
+        const res = await fetch("/api/issuer-canons");
+        if (!res.ok) throw new Error("Failed to load issuer canons");
+        const data: IssuerCanonEntry[] = await res.json();
+        setIssuerCanons(data);
+      } catch (err: any) {
+        console.error("issuer canons fetch error", err);
+        setIssuerCanonsError("Unable to load issuer canon list.");
+      } finally {
+        setIssuerCanonsLoading(false);
+      }
+    };
+
+    fetchIssuerCanons();
+  }, [draftSummary]);
+
   // --- Callbacks and Handlers ---
 
   // REMOVED: The previous useEffect is replaced by initialization logic in handleSummarize
@@ -92,6 +114,9 @@ export const useImageCaptureState = (
     setSelectedCanon(null);
     setCaptureSource(initialSource);
     setIsProcessingCapture(false);
+    setIssuerCanons([]);
+    setIssuerCanonsError("");
+    setSelectedIssuerCanon(null);
     onOpenChange?.(false);
   }, [images.length, initialSource, isSaving, onOpenChange]);
 
@@ -175,6 +200,16 @@ export const useImageCaptureState = (
       setError("");
       setSaveMessage("");
       setCameraError(false);
+      setSelectedIssuerCanon(null);
+    },
+    [],
+  );
+
+  const applyIssuerCanon = useCallback(
+    (entry: IssuerCanonEntry) => {
+      // Allow repeat selections of the same issuer without locking the button
+      setSelectedIssuerCanon({ name: entry.master, selectionId: Date.now() });
+      setEditableSummary((prev) => applyIssuerCanonToSummary(prev, entry));
     },
     [],
   );
@@ -187,7 +222,7 @@ export const useImageCaptureState = (
     const setSummaries = (newSummary: string) => {
       setDraftSummary(newSummary);
       setEditableSummary(newSummary); // Initializes editableSummary = draftSummary
-    }
+    };
     
     // Pass the custom setter to the external utility
     await handleSummary({
@@ -263,9 +298,15 @@ export const useImageCaptureState = (
       selectedCanon,
       setIsSaving,
       onError: setError,
-      onSuccess: (savedSetName) => {
+      onSuccess: ({ setName: savedSetName, targetFolderId, topic }) => {
         setShowGallery(false); // Close gallery after success
-        setSaveMessage(`Saved as: "${savedSetName}". ✅`);
+        const folderLabel =
+          topic || targetFolderId?.split("/").pop() || targetFolderId || "";
+        const pathLine = folderLabel
+          ? `path: ${folderLabel} ✅`
+          : "path: (default) ✅";
+        const saveLine = `save as: "${savedSetName}" ✅`;
+        setSaveMessage(`${pathLine}\n${saveLine}`);
         setImages([]); // Clear images after save
         setDraftSummary("");
         setEditableSummary("");
