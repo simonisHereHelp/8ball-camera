@@ -265,9 +265,13 @@ export const useImageCaptureState = (
       selectedCanon,
       setIsSaving,
       onError: setError,
-      onSuccess: (savedSetName) => {
+      onSuccess: ({ setName: savedSetName, targetFolderId }) => {
         setShowGallery(false); // Close gallery after success
-        setSaveMessage(`Saved as: "${savedSetName}". ✅`);
+        const folderPath = targetFolderId ? `Drive_${targetFolderId}` : "Drive_unknown";
+        const resolvedName = savedSetName || "(untitled)";
+        setSaveMessage(
+          `uploaded to path: ${folderPath} ✅\nname: ${resolvedName} ✅`,
+        );
         setImages([]); // Clear images after save
         setDraftSummary("");
         setEditableSummary("");

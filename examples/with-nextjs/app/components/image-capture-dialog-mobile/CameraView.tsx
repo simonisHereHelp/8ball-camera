@@ -243,7 +243,7 @@ export function CameraView({ state, actions, cameraRef }: CameraViewProps) {
       )}
       {saveMessage && (
         <div className="px-4 pb-4">
-          <p className="text-sm text-emerald-300">{saveMessage}</p>
+          <p className="text-sm text-emerald-300 whitespace-pre-line">{saveMessage}</p>
         </div>
       )}
 
