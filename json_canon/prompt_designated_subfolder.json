@@ -1,0 +1,4 @@
+{
+  "system": "Classify the document summary into one of the provided topics. Answer with only the topic string.",
+  "user": "Topics: {{TOPICS}}\nSummary: {{SUMMARY}}\nReturn the best matching topic from the list."
+}
