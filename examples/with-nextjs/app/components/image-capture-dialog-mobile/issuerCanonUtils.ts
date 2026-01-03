@@ -40,23 +40,18 @@ export const applyCanonToSummary = ({
   const stripCanonLines = (text: string) =>
     text
       .split(/\r?\n/)
-      .map((line) => line.trimEnd())
       .filter((line) => !/^\s*單位\s*:/u.test(line.trim()))
-      .join("\n")
-      .trim();
-
-  const normalizeLines = (text: string) =>
-    stripCanonLines(text)
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter(Boolean);
+      .map((line) => line.replace(/\s+$/u, ""));
 
   // Prefer the current editable text; fall back to the original draft when empty.
-  const baseLines = normalizeLines(currentSummary).length
-    ? normalizeLines(currentSummary)
-    : normalizeLines(draftSummary);
+  const baseLines =
+    currentSummary.trim().length > 0
+      ? stripCanonLines(currentSummary)
+      : stripCanonLines(draftSummary);
 
-  if (!baseLines.length) {
+  const hasContent = baseLines.some((line) => line.trim().length > 0);
+
+  if (!hasContent) {
     return canonLine;
   }
 

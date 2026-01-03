@@ -79,14 +79,14 @@ export function CameraView({ state, actions, cameraRef }: CameraViewProps) {
 
         {!isCameraSelected && (
           <div
-            className="w-full h-full min-h-0 rounded-lg overflow-hidden bg-black relative flex flex-col max-h-[82vh]"
+            className="relative w-full flex-1 min-h-0 rounded-lg overflow-hidden bg-black flex flex-col max-h-[72vh] sm:max-h-[78vh]"
           >
-            <div className="flex-1 min-h-0 flex items-center justify-center">
+            <div className="flex-1 min-h-0 flex items-center justify-center overflow-hidden">
               {latestImage ? (
                 <img
                   src={latestImage.url || "/placeholder.svg"}
                   alt="Selected from device"
-                  className="h-full w-full max-h-full max-w-full object-contain"
+                  className="max-h-full max-w-full object-contain"
                 />
               ) : (
                 <div className="flex-1 flex flex-col items-center justify-center text-white/60 gap-2">

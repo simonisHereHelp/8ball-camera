@@ -77,3 +77,16 @@ test("applyCanonToSummary replaces older registry lines", () => {
     "單位: New Canon\nExisting text",
   );
 });
+
+test("applyCanonToSummary keeps existing spacing intact", () => {
+  const updated = applyCanonToSummary({
+    canon: sampleCanon,
+    currentSummary: "Lead line\n\nDetails below",
+    draftSummary: "",
+  });
+
+  assert.equal(
+    updated,
+    "單位: Mega Bank\nLead line\n\nDetails below",
+  );
+});
