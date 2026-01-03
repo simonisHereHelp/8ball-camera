@@ -1,11 +1,17 @@
 // app/components/image-capture-dialog-mobile/useImageCaptureState.ts
 
-import { useRef, useState, useEffect, useCallback } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 import type { WebCameraHandler, FacingMode } from "@shivantra/react-web-camera";
 import { useSession } from "next-auth/react";
 import { handleSave } from "@/lib/handleSave"; // Assuming path is correct
 import { handleSummary } from "@/lib/handleSummary"; // Assuming path is correct
-import type { Image, State, Actions } from "./types";
+import {
+  CaptureError,
+  DEFAULTS,
+  normalizeCapture,
+} from "../shared/normalizeCapture";
+import type { Image, State, Actions, IssuerCanonEntry } from "./types";
+import { applyIssuerCanonToSummary } from "../shared/issuerCanonUtils";
 
 interface UseImageCaptureState {
   state: State;
@@ -15,12 +21,17 @@ interface UseImageCaptureState {
 
 export const useImageCaptureState = (
   onOpenChange?: (open: boolean) => void,
+  initialSource: "camera" | "photos" = "camera",
 ): UseImageCaptureState => {
   const [images, setImages] = useState<Image[]>([]);
   const [facingMode, setFacingMode] = useState<FacingMode>("environment");
   const [isSaving, setIsSaving] = useState(false);
+  const [isProcessingCapture, setIsProcessingCapture] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
   const [cameraError, setCameraError] = useState(false);
+  const [captureSource, setCaptureSource] = useState<"camera" | "photos">(
+    initialSource,
+  );
   
   // RENAMED: summary -> draftSummary
   const [draftSummary, setDraftSummary] = useState("");
@@ -30,9 +41,41 @@ export const useImageCaptureState = (
   const [error, setError] = useState("");
   const [saveMessage, setSaveMessage] = useState("");
   const [showSummaryOverlay, setShowSummaryOverlay] = useState(false);
+  const [issuerCanons, setIssuerCanons] = useState<IssuerCanonEntry[]>([]);
+  const [issuerCanonsLoading, setIssuerCanonsLoading] = useState(false);
+  const [issuerCanonsError, setIssuerCanonsError] = useState("");
+  const [selectedIssuerCanon, setSelectedIssuerCanon] = useState<
+    { name: string; selectionId: number } | null
+  >(null);
 
   const cameraRef = useRef<WebCameraHandler>(null);
   const { data: session } = useSession();
+
+  useEffect(() => {
+    setCaptureSource(initialSource);
+  }, [initialSource]);
+
+  useEffect(() => {
+    if (!draftSummary) return;
+
+    const fetchIssuerCanons = async () => {
+      setIssuerCanonsLoading(true);
+      setIssuerCanonsError("");
+      try {
+        const res = await fetch("/api/issuer-canons");
+        if (!res.ok) throw new Error("Failed to load issuer canons");
+        const data: IssuerCanonEntry[] = await res.json();
+        setIssuerCanons(data);
+      } catch (err: any) {
+        console.error("issuer canons fetch error", err);
+        setIssuerCanonsError("Unable to load issuer canon list.");
+      } finally {
+        setIssuerCanonsLoading(false);
+      }
+    };
+
+    fetchIssuerCanons();
+  }, [draftSummary]);
 
   // --- Callbacks and Handlers ---
 
@@ -62,29 +105,75 @@ export const useImageCaptureState = (
     setSaveMessage("");
     setShowSummaryOverlay(false);
     setShowGallery(false);
+    setCaptureSource(initialSource);
+    setIsProcessingCapture(false);
+    setIssuerCanons([]);
+    setIssuerCanonsError("");
+    setSelectedIssuerCanon(null);
     onOpenChange?.(false);
-  }, [images.length, isSaving, onOpenChange]);
+  }, [images.length, initialSource, isSaving, onOpenChange]);
+
+  const ingestFile = useCallback(
+    async (file: File, source: "camera" | "photos", preferredName?: string) => {
+      setIsProcessingCapture(true);
+      try {
+        const { file: normalizedFile, previewUrl } = await normalizeCapture(
+          file,
+          source,
+          {
+            maxFileSize: DEFAULTS.MAX_FILE_SIZE,
+            preferredName,
+          },
+        );
+
+        // Clear previous state after a new capture
+        setSummaryImageUrl(null);
+        setDraftSummary("");
+        setEditableSummary("");
+        setError("");
+        setSaveMessage("");
+        setShowGallery(false);
+        setShowSummaryOverlay(false);
+        setImages((prev) => [...prev, { url: previewUrl, file: normalizedFile }]);
+      } catch (err) {
+        console.error("Capture error:", err);
+        if (err instanceof CaptureError) {
+          setError(err.message);
+        } else {
+          setError("Unable to process the image. Please try again.");
+        }
+      } finally {
+        setIsProcessingCapture(false);
+      }
+    },
+    [],
+  );
 
   const handleCapture = useCallback(async () => {
     if (!cameraRef.current) return;
     try {
       const file = await cameraRef.current.capture();
       if (file) {
-        const url = URL.createObjectURL(file);
-        // Clear previous state after a new capture
-        setSummaryImageUrl(null);
-        setDraftSummary(""); // Updated
-        setEditableSummary(""); // Reset editableSummary on new capture
-        setError("");
-        setSaveMessage("");
-        setShowGallery(false);
-        setShowSummaryOverlay(false);
-        setImages((prev) => [...prev, { url, file }]);
+        await ingestFile(file, "camera", `capture-${Date.now()}.jpeg`);
       }
     } catch (err) {
       console.error("Capture error:", err);
+      setError("Unable to access camera capture.");
     }
-  }, []);
+  }, [ingestFile, setError]);
+
+  const handleAlbumSelect = useCallback(
+    async (files: FileList | null) => {
+      if (!files || files.length === 0) {
+        setError("No photo selected.");
+        return;
+      }
+
+      const file = files[0];
+      await ingestFile(file, "photos");
+    },
+    [ingestFile],
+  );
 
   const handleCameraSwitch = useCallback(async () => {
     if (!cameraRef.current) return;
@@ -97,6 +186,27 @@ export const useImageCaptureState = (
     }
   }, [facingMode]);
 
+  const handleSourceChange = useCallback(
+    (source: "camera" | "photos") => {
+      setCaptureSource(source);
+      setShowGallery(false);
+      setError("");
+      setSaveMessage("");
+      setCameraError(false);
+      setSelectedIssuerCanon(null);
+    },
+    [],
+  );
+
+  const applyIssuerCanon = useCallback(
+    (entry: IssuerCanonEntry) => {
+      // Allow repeat selections of the same issuer without locking the button
+      setSelectedIssuerCanon({ name: entry.master, selectionId: Date.now() });
+      setEditableSummary((prev) => applyIssuerCanonToSummary(prev, entry));
+    },
+    [],
+  );
+
   const handleSummarize = useCallback(async () => {
     setSaveMessage("");
     setError("");
@@ -105,7 +215,7 @@ export const useImageCaptureState = (
     const setSummaries = (newSummary: string) => {
       setDraftSummary(newSummary);
       setEditableSummary(newSummary); // Initializes editableSummary = draftSummary
-    }
+    };
     
     // Pass the custom setter to the external utility
     await handleSummary({
@@ -141,9 +251,15 @@ export const useImageCaptureState = (
       editableSummary: finalSummary, // Edited and final content
       setIsSaving,
       onError: setError,
-      onSuccess: (savedSetName) => {
+      onSuccess: ({ setName: savedSetName, targetFolderId, topic }) => {
         setShowGallery(false); // Close gallery after success
-        setSaveMessage(`Saved as: "${savedSetName}". ✅`);
+        const folderLabel =
+          topic || targetFolderId?.split("/").pop() || targetFolderId || "";
+        const pathLine = folderLabel
+          ? `path: ${folderLabel} ✅`
+          : "path: (default) ✅";
+        const saveLine = `save as: "${savedSetName}" ✅`;
+        setSaveMessage(`${pathLine}\n${saveLine}`);
         setImages([]); // Clear images after save
         setDraftSummary("");
         setEditableSummary("");
@@ -156,27 +272,37 @@ export const useImageCaptureState = (
     images,
     facingMode,
     isSaving,
+    isProcessingCapture,
     showGallery,
     cameraError,
+    captureSource,
     draftSummary, // Updated
     editableSummary,
     summaryImageUrl,
     error,
     saveMessage,
     showSummaryOverlay,
+    issuerCanons,
+    issuerCanonsLoading,
+    issuerCanonsError,
+    selectedIssuerCanon,
   };
 
   const actions: Actions = {
     deleteImage,
     handleCapture,
+    handleAlbumSelect,
     handleCameraSwitch,
     handleSummarize,
     handleSaveImages,
     handleClose,
+    setCaptureSource: handleSourceChange,
     setEditableSummary,
     setDraftSummary, // Updated
     setShowGallery,
     setCameraError,
+    setError,
+    applyIssuerCanon,
   };
 
   return { state, actions, cameraRef };

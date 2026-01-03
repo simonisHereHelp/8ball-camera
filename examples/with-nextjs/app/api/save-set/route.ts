@@ -3,13 +3,17 @@ import { NextResponse } from "next/server";
 import { Buffer } from "buffer";
 import { driveSaveFiles } from "@/lib/driveSaveFiles";
 import { GPT_Router } from "@/lib/gptRouter";
+import {
+  DRIVE_FALLBACK_FOLDER_ID,
+  PROMPT_SET_NAME_SOURCE,
+} from "@/lib/jsonCanonSources";
+import { resolveDriveFolder } from "@/lib/driveSubfolderResolver";
 
 export const runtime = "nodejs";
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const DRIVE_FOLDER_ID = process.env.DRIVE_FOLDER_ID;
-const CANONICAL_FILE_ID = process.env.DRIVE_FILE_ID_CANONICALS;
-const PROMPT_ID = process.env.PROMPT_SET_NAME_JSON_ID ?? "1srQP_Ekw79v45jgkwgeV67wx6j9OcmII";
+const PROMPT_ID = PROMPT_SET_NAME_SOURCE;
+const BASE_DRIVE_FOLDER_ID = DRIVE_FALLBACK_FOLDER_ID;
 /**
  * 根據摘要產生檔案名稱標籤
  */
@@ -67,7 +71,7 @@ async function deriveSetNameFromSummary(summary: string): Promise<string> {
 }
 
 export async function POST(request: Request) {
-  if (!DRIVE_FOLDER_ID) {
+  if (!BASE_DRIVE_FOLDER_ID) {
     return NextResponse.json({ error: "Missing DRIVE_FOLDER_ID" }, { status: 500 });
   }
 
@@ -83,9 +87,11 @@ export async function POST(request: Request) {
     // ✅ 執行核心命名邏輯 (調用新的 GPT_Router 流程)
     const setName = await deriveSetNameFromSummary(summary);
 
-    // 儲存檔案到 Google Drive
+    // 儲存檔案到 Google Drive (auto-route into active subfolders)
+    const { folderId: targetFolderId, topic } = await resolveDriveFolder(summary);
+
     await driveSaveFiles({
-      folderId: DRIVE_FOLDER_ID,
+      folderId: targetFolderId,
       files,
       fileToUpload: async (file) => {
         const baseName = setName.replace(/[\\/:*?"<>|]/g, "_");
@@ -104,7 +110,7 @@ export async function POST(request: Request) {
       },
     });
 
-    return NextResponse.json({ setName }, { status: 200 });
+    return NextResponse.json({ setName, targetFolderId, topic }, { status: 200 });
   } catch (err: any) {
     console.error("save-set failed:", err);
     return NextResponse.json({ error: err.message }, { status: 500 });
