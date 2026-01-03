@@ -1,6 +1,8 @@
 # Prompt & Canon Sources (Next.js 14 uploader)
 
 This project reads JSON configs from the `json_canon/` folder by default (overridable via env paths/IDs). They drive summarization, file naming, canonical updates, and now subfolder routing for saves.
+
+During mobile summary edits, a built-in issuer canon picker now surfaces entries from `canonicals_bible.json` so you can seed the final summary with consistent issuer names without altering the overall upload flow.
 # React Web Camera
 A lightweight and flexible React component for capturing images from the user’s camera (front or back) with support for `jpeg`, `png`, and `webp` formats. Built with modern React (`hooks` + `forwardRef`) and works on both desktop and mobile browsers.
 
