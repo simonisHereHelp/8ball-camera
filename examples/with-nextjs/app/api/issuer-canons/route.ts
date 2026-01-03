@@ -5,27 +5,25 @@ import { CANONICALS_BIBLE_SOURCE } from "@/lib/jsonCanonSources";
 export const runtime = "nodejs";
 
 export async function GET() {
-  if (!CANONICALS_BIBLE_SOURCE) {
-    return NextResponse.json(
-      { error: "Missing canonical source configuration" },
-      { status: 500 },
-    );
-  }
-
   try {
-    const bible = await GPT_Router.fetchJsonSource(CANONICALS_BIBLE_SOURCE, true);
-    const issuers = bible?.issuers || [];
+    if (!CANONICALS_BIBLE_SOURCE) {
+      return NextResponse.json(
+        { error: "Missing canonical source" },
+        { status: 500 },
+      );
+    }
 
-    return NextResponse.json(
-      issuers.map((issuer: any) => ({
-        master: issuer.master,
-        aliases: issuer.aliases || [],
-      })),
+    const bibleData = await GPT_Router.fetchJsonSource(
+      CANONICALS_BIBLE_SOURCE,
+      true,
     );
-  } catch (err: any) {
-    console.error("issuer-canons fetch failed:", err);
+    const issuers = bibleData?.issuers ?? [];
+
+    return NextResponse.json({ issuers });
+  } catch (err) {
+    console.error("/api/issuer-canons failed:", err);
     return NextResponse.json(
-      { error: "Failed to load issuer canons" },
+      { error: "Unable to load issuer canons" },
       { status: 500 },
     );
   }
