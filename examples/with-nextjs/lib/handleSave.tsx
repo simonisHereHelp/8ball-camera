@@ -5,6 +5,11 @@ export interface Image {
   file: File;
 }
 
+export interface SelectedCanonMeta {
+  master: string;
+  aliases?: string[];
+}
+
 /**
  * Saves the current images + summary via /api/save-set.
  * The server (via ChatGPT) is responsible for deriving setName.
@@ -13,13 +18,15 @@ export const handleSave = async ({
   images,
   draftSummary, // ✅ 原始 LLM 輸出
   editableSummary, // ✅ 用戶編輯後的最終摘要
+  selectedCanon,
   setIsSaving,
   onError,
   onSuccess,
 }: {
   images: Image[];
-  draftSummary: string; 
-  editableSummary: string; 
+  draftSummary: string;
+  editableSummary: string;
+  selectedCanon?: SelectedCanonMeta | null;
   setIsSaving: (isSaving: boolean) => void;
   onError?: (message: string) => void;
   onSuccess?: (setName: string) => void;
@@ -41,11 +48,24 @@ export const handleSave = async ({
 
     // 2. summary.json file — server will rename it to setName.json
     const summaryFile = new File(
-      [JSON.stringify({ summary: finalSummary }, null, 2)],
+      [
+        JSON.stringify(
+          {
+            summary: finalSummary,
+            selectedCanon: selectedCanon ?? undefined,
+          },
+          null,
+          2,
+        ),
+      ],
       "summary.json",
       { type: "application/json" },
     );
     formData.append("files", summaryFile);
+
+    if (selectedCanon) {
+      formData.append("selectedCanon", JSON.stringify(selectedCanon));
+    }
 
     // 3. all captured images — server will rename to {setName}-pX.ext or similar
     images.forEach((image) => {
