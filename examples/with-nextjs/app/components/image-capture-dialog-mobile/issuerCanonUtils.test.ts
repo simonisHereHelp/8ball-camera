@@ -62,3 +62,16 @@ test("applyCanonToSummary prepends canon when missing", () => {
     "單位: Mega Bank\nOther summary line",
   );
 });
+
+test("applyCanonToSummary replaces older registry lines", () => {
+  const updated = applyCanonToSummary({
+    canon: { master: "New Canon" },
+    currentSummary: "單位: Old Canon\nExisting text",
+    draftSummary: "單位: Older Canon\nDraft body",
+  });
+
+  assert.equal(
+    updated,
+    "單位: New Canon\nExisting text",
+  );
+});

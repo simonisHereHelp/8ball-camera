@@ -39,16 +39,21 @@ export const applyCanonToSummary = ({
   const canonLine = `單位: ${canon.master}`;
   const trimmedCurrent = currentSummary.trim();
 
-  if (!trimmedCurrent) {
-    const draftPortion = draftSummary.trim();
-    return draftPortion ? `${canonLine}\n${draftPortion}` : canonLine;
+  const stripCanonLines = (text: string) =>
+    text
+      .split(/\r?\n/)
+      .filter((line) => !/^\s*單位\s*:/u.test(line.trim()))
+      .join("\n")
+      .trim();
+
+  const cleanedCurrent = stripCanonLines(trimmedCurrent);
+  const cleanedDraft = stripCanonLines(draftSummary.trim());
+
+  if (!cleanedCurrent) {
+    return cleanedDraft ? `${canonLine}\n${cleanedDraft}` : canonLine;
   }
 
-  if (trimmedCurrent.includes(canon.master)) {
-    return trimmedCurrent;
-  }
-
-  return `${canonLine}\n${trimmedCurrent}`;
+  return `${canonLine}\n${cleanedCurrent}`;
 };
 
 export type { IssuerCanonEntry };

@@ -47,9 +47,9 @@ export function CameraView({ state, actions, cameraRef }: CameraViewProps) {
   const latestImage = images.length > 0 ? images[images.length - 1] : null;
 
   return (
-    <>
+    <div className="flex h-full flex-col">
       {/* Camera View Area */}
-      <div className="flex-1 relative p-0.5 min-h-0">
+      <div className="flex-1 relative p-0.5 min-h-0 flex flex-col">
         {cameraError && isCameraSelected ? (
           <div className="flex flex-col items-center justify-center w-full h-full text-white/50">
             <CameraOff className="w-12 h-12 mb-4" />
@@ -78,19 +78,21 @@ export function CameraView({ state, actions, cameraRef }: CameraViewProps) {
         )}
 
         {!isCameraSelected && (
-          <div className="w-full h-full rounded-lg overflow-hidden bg-black relative flex items-center justify-center">
-            {latestImage ? (
-              <img
-                src={latestImage.url || "/placeholder.svg"}
-                alt="Selected from device"
-                className="max-h-full max-w-full object-contain"
-              />
-            ) : (
-              <div className="flex-1 flex flex-col items-center justify-center text-white/60 gap-2">
-                <ImageIcon className="w-10 h-10" />
-                <p className="text-sm">Pick a photo from your device</p>
-              </div>
-            )}
+          <div className="w-full h-full min-h-0 rounded-lg overflow-hidden bg-black relative flex flex-col">
+            <div className="flex-1 min-h-0 flex items-center justify-center">
+              {latestImage ? (
+                <img
+                  src={latestImage.url || "/placeholder.svg"}
+                  alt="Selected from device"
+                  className="h-full w-full max-h-full max-w-full object-contain"
+                />
+              ) : (
+                <div className="flex-1 flex flex-col items-center justify-center text-white/60 gap-2">
+                  <ImageIcon className="w-10 h-10" />
+                  <p className="text-sm">Pick a photo from your device</p>
+                </div>
+              )}
+            </div>
 
             <div className="absolute bottom-6 left-0 right-0 flex flex-col gap-3 px-8">
               <Button
@@ -253,6 +255,6 @@ export function CameraView({ state, actions, cameraRef }: CameraViewProps) {
           event.target.value = "";
         }}
       />
-    </>
+    </div>
   );
 }

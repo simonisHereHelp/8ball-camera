@@ -1,5 +1,7 @@
 // app/lib/handleSummary.ts
 
+import { playSuccessChime } from "../app/components/image-capture-dialog-mobile/soundEffects";
+
 export interface Image {
   url: string;
   file: File;
@@ -9,6 +11,7 @@ export interface Image {
  * Uploads the latest image to /api/summarize and shows
  * the first 800 characters of the returned summary.
  */
+
 export const handleSummary = async ({
   images,
   setIsSaving,
@@ -63,6 +66,7 @@ export const handleSummary = async ({
     setSummary(summaryText);
     setSummaryImageUrl(images[images.length - 1].url);
     setShowSummaryOverlay(true);
+    playSuccessChime();
     return true;
   } catch (error) {
     console.error("Failed to summarize image:", error);

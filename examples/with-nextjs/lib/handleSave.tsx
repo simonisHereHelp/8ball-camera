@@ -1,5 +1,7 @@
 // app/lib/handleSave.ts
 
+import { playSuccessChime } from "../app/components/image-capture-dialog-mobile/soundEffects";
+
 export interface Image {
   url: string;
   file: File;
@@ -117,6 +119,8 @@ export const handleSave = async ({
     if (onSuccess) {
       onSuccess(json?.setName ?? "");
     }
+
+    playSuccessChime();
 
     return true;
   } catch (error) {
