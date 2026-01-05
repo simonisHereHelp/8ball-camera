@@ -9,6 +9,84 @@ import {
 } from "@/lib/jsonCanonSources";
 import { resolveDriveFolder } from "@/lib/driveSubfolderResolver";
 
+interface SelectedCanonMeta {
+  master: string;
+  aliases?: string[];
+}
+
+function extractField(
+  lines: string[],
+  labels: string[],
+): string | null {
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    const [label, ...rest] = line.split(/[：:]/u);
+    if (!label || !rest.length) continue;
+
+    const normalizedLabel = label.replace(/\s+/g, "").toLowerCase();
+    if (labels.some((candidate) => normalizedLabel === candidate)) {
+      return rest.join(":").trim();
+    }
+  }
+  return null;
+}
+
+function deriveTocFields(
+  summary: string,
+  selectedCanon: SelectedCanonMeta | null,
+) {
+  const lines = summary.split(/\r?\n/).filter((line) => line.trim().length > 0);
+
+  const issuer =
+    extractField(lines, ["單位", "issuer", "寄件單位", "機構"])
+      || selectedCanon?.master
+      || "其他單位";
+
+  const type =
+    extractField(lines, ["類型", "type", "分類"]) || "一般文件";
+
+  const action =
+    extractField(lines, ["行動", "action", "處置", "下一步"]) || "其他行動";
+
+  return { issuer, type, action };
+}
+
+function buildMarkdown(params: {
+  setName: string;
+  issuer: string;
+  type: string;
+  action: string;
+  summary: string;
+  pageCount: number;
+}) {
+  const { setName, issuer, type, action, summary, pageCount } = params;
+  const images = Array.from({ length: Math.max(pageCount, 0) }).map((_, idx) => {
+    const pageNumber = idx + 1;
+    return `![${setName}-p${pageNumber}](./${setName}-p${pageNumber}.jpeg)`;
+  });
+
+  return `# ${setName}
+
+## TOC
+
+- **單位（Issuer）**：${issuer}
+- **類型（Type）**：${type}
+- **行動（Action）**：${action}
+
+---
+
+## summary
+
+${summary.trim()}
+
+---
+
+## support
+
+${images.join("\n\n")}
+`;
+}
+
 export const runtime = "nodejs";
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
@@ -78,6 +156,16 @@ export async function POST(request: Request) {
   try {
     const formData = await request.formData();
     const summary = (formData.get("summary") as string | null)?.trim() ?? "";
+    const selectedCanonRaw = formData.get("selectedCanon");
+    let selectedCanon: SelectedCanonMeta | null = null;
+    if (typeof selectedCanonRaw === "string") {
+      try {
+        selectedCanon = (JSON.parse(selectedCanonRaw) as SelectedCanonMeta) ?? null;
+      } catch (err) {
+        console.warn("Unable to parse selectedCanon from request:", err);
+      }
+    }
+
     const files = formData.getAll("files").filter((file): file is File => file instanceof File);
 
     if (!summary || !files.length) {
@@ -90,17 +178,31 @@ export async function POST(request: Request) {
     // 儲存檔案到 Google Drive (auto-route into active subfolders)
     const { folderId: targetFolderId, topic } = await resolveDriveFolder(summary);
 
+    const imageFiles = files;
+    const { issuer, type, action } = deriveTocFields(summary, selectedCanon);
+    const markdown = buildMarkdown({
+      setName,
+      issuer,
+      type,
+      action,
+      summary,
+      pageCount: imageFiles.length,
+    });
+
+    const summaryFile = new File([markdown], "summary.md", { type: "text/markdown" });
+    const uploadFiles = [...imageFiles, summaryFile];
+
     await driveSaveFiles({
       folderId: targetFolderId,
-      files,
+      files: uploadFiles,
       fileToUpload: async (file) => {
         const baseName = setName.replace(/[\\/:*?"<>|]/g, "_");
         const extension = file.name.split(".").pop();
-        const imageFiles = files.filter(f => f.name !== "summary.json");
-        
-        let fileName = file.name === "summary.json"
-          ? `${baseName}.json`
-          : `${baseName}-p${imageFiles.indexOf(file) + 1}.${extension ?? "dat"}`;
+
+        const fileName =
+          file === summaryFile || file.name === "summary.md"
+            ? `${baseName}.md`
+            : `${baseName}-p${imageFiles.indexOf(file) + 1}.${extension ?? "dat"}`;
 
         return {
           name: fileName,

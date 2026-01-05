@@ -48,23 +48,7 @@ export const handleSave = async ({
     // 1. Send the edited summary as the 'summary' form field (used for setName derivation)
     formData.append("summary", trimmedFinalSummary);
 
-    // 2. summary.json file — server will rename it to setName.json
-    const summaryFile = new File(
-      [
-        JSON.stringify(
-          {
-            summary: trimmedFinalSummary,
-            selectedCanon: selectedCanon ?? undefined,
-          },
-          null,
-          2,
-        ),
-      ],
-      "summary.json",
-      { type: "application/json" },
-    );
-    formData.append("files", summaryFile);
-
+    // Include issuer canon metadata for markdown generation on the server
     if (selectedCanon) {
       formData.append("selectedCanon", JSON.stringify(selectedCanon));
     }
