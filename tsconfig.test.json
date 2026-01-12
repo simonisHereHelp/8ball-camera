@@ -21,6 +21,8 @@
     "examples/with-nextjs/app/components/shared/normalizeCapture.test.ts",
     "examples/with-nextjs/app/components/image-capture-dialog-mobile/issuerCanonUtils.ts",
     "examples/with-nextjs/app/components/image-capture-dialog-mobile/issuerCanonUtils.test.ts",
+    "examples/with-nextjs/lib/normalizeFilename.ts",
+    "examples/with-nextjs/lib/normalizeFilename.test.ts",
     "examples/with-nextjs/types/issuerCanon.ts"
   ]
 }

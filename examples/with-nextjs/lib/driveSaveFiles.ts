@@ -1,5 +1,6 @@
 // @/lib/driveSaveFiles.ts
 import { auth } from "@/auth";
+import { normalizeFilename } from "@/lib/normalizeFilename";
 
 
 const DRIVE_UPLOAD_URL =
@@ -56,9 +57,10 @@ export async function driveSaveFiles(params: {
 
   for (const file of files) {
     const { name, buffer, mimeType } = await fileToUpload(file);
+    const normalizedName = normalizeFilename(name);
 
     const boundary = "drive-boundary-" + Date.now() + Math.random().toString(16);
-    const metadata = { name, parents: [resolvedFolderId] };
+    const metadata = { name: normalizedName, parents: [resolvedFolderId] };
     const body = buildMultipartBody(boundary, metadata, buffer, mimeType);
 
     const res = await fetch(DRIVE_UPLOAD_URL, {

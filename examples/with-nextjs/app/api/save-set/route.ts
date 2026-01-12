@@ -8,6 +8,7 @@ import {
   PROMPT_SET_NAME_SOURCE,
 } from "@/lib/jsonCanonSources";
 import { resolveDriveFolder } from "@/lib/driveSubfolderResolver";
+import { normalizeFilename } from "@/lib/normalizeFilename";
 
 interface SelectedCanonMeta {
   master: string;
@@ -126,13 +127,14 @@ export async function POST(request: Request) {
 
     // ✅ 執行核心命名邏輯 (調用新的 GPT_Router 流程)
     const setName = await deriveSetNameFromSummary(summary);
+    const normalizedSetName = normalizeFilename(setName);
 
     // 儲存檔案到 Google Drive (auto-route into active subfolders)
     const { folderId: targetFolderId, topic } = await resolveDriveFolder(summary);
 
     const imageFiles = files;
     const markdown = buildMarkdown({
-      setName,
+      setName: normalizedSetName,
       summary,
       pageCount: imageFiles.length,
     });
@@ -144,13 +146,16 @@ export async function POST(request: Request) {
       folderId: targetFolderId,
       files: uploadFiles,
       fileToUpload: async (file) => {
-        const baseName = setName.replace(/[\\/:*?"<>|]/g, "_");
+        const baseName = normalizeFilename(
+          normalizedSetName.replace(/[\\/:*?"<>|]/g, "_"),
+        );
         const extension = file.name.split(".").pop();
 
-        const fileName =
+        const fileName = normalizeFilename(
           file === summaryFile || file.name === "summary.md"
             ? `${baseName}.md`
-            : `${baseName}-p${imageFiles.indexOf(file) + 1}.${extension ?? "dat"}`;
+            : `${baseName}-p${imageFiles.indexOf(file) + 1}.${extension ?? "dat"}`,
+        );
 
         return {
           name: fileName,
@@ -160,7 +165,10 @@ export async function POST(request: Request) {
       },
     });
 
-    return NextResponse.json({ setName, targetFolderId, topic }, { status: 200 });
+    return NextResponse.json(
+      { setName: normalizedSetName, targetFolderId, topic },
+      { status: 200 },
+    );
   } catch (err: any) {
     console.error("save-set failed:", err);
     return NextResponse.json({ error: err.message }, { status: 500 });

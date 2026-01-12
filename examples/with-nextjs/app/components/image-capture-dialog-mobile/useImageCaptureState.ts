@@ -5,6 +5,7 @@ import type { WebCameraHandler, FacingMode } from "@shivantra/react-web-camera";
 import { useSession } from "next-auth/react";
 import { handleSave } from "@/lib/handleSave"; // Assuming path is correct
 import { handleSummary } from "@/lib/handleSummary"; // Assuming path is correct
+import { normalizeFilename } from "@/lib/normalizeFilename";
 import {
   CaptureError,
   DEFAULTS,
@@ -270,7 +271,7 @@ export const useImageCaptureState = (
         const lastSegment = targetFolderId?.split("/").pop() ?? "";
         const folderPath = topic || lastSegment || "Drive_unknown";
         const displayPath = folderPath.replace(/^Drive_/, "");
-        const resolvedName = savedSetName || "(untitled)";
+        const resolvedName = normalizeFilename(savedSetName || "(untitled)");
         setSaveMessage(
           `uploaded to path: ${displayPath} ✅\nname: ${resolvedName} ✅`,
         );
