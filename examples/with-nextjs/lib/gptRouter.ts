@@ -17,13 +17,17 @@ export class GPT_Router {
       return JSON.parse(fileContent);
     }
 
+    const looksLikeDriveId = /^[a-zA-Z0-9_-]{10,}$/.test(fileID) && !fileID.includes("/");
+    const shouldUseAuth = useAuth || looksLikeDriveId;
     let url = `https://drive.google.com/uc?export=download&id=${fileID}`;
     const headers: HeadersInit = {};
 
-    if (useAuth) {
+    if (shouldUseAuth) {
       const session = await auth();
       const accessToken = (session as any)?.accessToken;
-      if (!accessToken) throw new Error("Missing Google Drive access token");
+      if (!accessToken) {
+        throw new Error("Missing Google Drive access token. Sign in to access private files.");
+      }
 
       // 使用 API 格式讀取私有媒體內容
       url = `https://www.googleapis.com/drive/v3/files/${fileID}?alt=media&supportsAllDrives=true`;
