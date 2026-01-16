@@ -29,12 +29,39 @@ function Content() {
   const [dialogSource, setDialogSource] = useState<"camera" | "photos" | null>(
     null,
   );
+  const [manifestStatus, setManifestStatus] = useState<string | null>(null);
+  const [manifestMessages, setManifestMessages] = useState<string[]>([]);
   const isMobile = useIsMobile();
 
   const { data: session } = useSession();
 
   const handleOpen = (source: "camera" | "photos") => setDialogSource(source);
   const handleClose = () => setDialogSource(null);
+  const refreshManifest = async () => {
+    setManifestStatus("processing manifest.json");
+    setManifestMessages([]);
+
+    try {
+      const response = await fetch("/api/refresh-manifest", { method: "POST" });
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || "Failed to refresh manifest.");
+      }
+
+      const json = (await response.json().catch(() => null)) as
+        | { processedFiles?: string[]; messages?: string[] }
+        | null;
+      const lastFile = json?.processedFiles?.at(-1) ?? "manifest.json";
+      setManifestStatus(`processing ${lastFile}`);
+      if (json?.messages) {
+        setManifestMessages(json.messages);
+      }
+    } catch (error) {
+      console.error("Failed to refresh manifest:", error);
+      setManifestStatus("processing failed");
+      setManifestMessages(["processing failed"]);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
@@ -87,12 +114,31 @@ function Content() {
                   >
                     Photo Album
                   </Button>
+                  <Button
+                    variant="outline"
+                    onClick={refreshManifest}
+                    className="h-12 !px-8 !py-3 text-lg font-medium rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 cursor-pointer"
+                  >
+                    #8635 Drive Manifest
+                  </Button>
                 </div>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
                   {isMobile
                     ? "Mobile-optimized interface"
                     : "Desktop-enhanced experience"}
                 </p>
+                {manifestStatus ? (
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                    {manifestStatus}
+                  </p>
+                ) : null}
+                {manifestMessages.length ? (
+                  <div className="text-xs text-slate-500 dark:text-slate-400 space-y-1">
+                    {manifestMessages.map((message, index) => (
+                      <div key={`${message}-${index}`}>{message}</div>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             </div>
           </div>

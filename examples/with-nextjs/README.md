@@ -20,6 +20,51 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Drive manifest
+
+Uploads write a `manifest.json` file into the target Google Drive folder. This manifest is merged on each `handleSave` upload so clients can avoid slow listings and resolve page trees and asset references.
+
+Example `manifest.json`:
+
+```json
+{
+  "folders": {
+    "docs/HouseUtilities": "folderId_houseutilities"
+  },
+  "tree": {
+    "docs/HouseUtilities": [
+      "fileId_index_mdx",
+      "fileId_houseutilities_md",
+      "fileId_houseutilities_text"
+    ]
+  },
+  "files": {
+    "fileId_index_mdx": {
+      "name": "index.mdx",
+      "mime": "text/markdown"
+    },
+    "fileId_houseutilities_md": {
+      "name": "HouseUtilities-一般文件-其他行動-20260112.md",
+      "mime": "text/markdown"
+    },
+    "fileId_houseutilities_text": {
+      "name": "HouseUtilitiesTEXT.txt",
+      "mime": "text/plain"
+    },
+    "fileId_houseutilities_img": {
+      "name": "HouseUtilities-一般文件-其他行動-20260112-p1.jpeg",
+      "mime": "image/jpeg"
+    }
+  },
+  "inlineAssets": {
+    "fileId_houseutilities_md": {
+      "./HouseUtilities-一般文件-其他行動-20260112-p1.jpeg": "fileId_houseutilities_img"
+    }
+  },
+  "updatedAt": 1710000000000
+}
+```
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
