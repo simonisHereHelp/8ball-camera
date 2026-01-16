@@ -24,6 +24,8 @@ async function listDriveFiles(params: {
     url.searchParams.set("q", query);
     url.searchParams.set("fields", "nextPageToken,files(id,name,mimeType)");
     url.searchParams.set("pageSize", "1000");
+    url.searchParams.set("supportsAllDrives", "true");
+    url.searchParams.set("includeItemsFromAllDrives", "true");
     if (pageToken) url.searchParams.set("pageToken", pageToken);
 
     const res = await fetch(url.toString(), {
@@ -73,16 +75,20 @@ export async function POST() {
   }
 
   try {
+    const messages: string[] = [];
+    messages.push("starting manifest refresh");
     const folderQuery = [
       `'${BASE_DRIVE_FOLDER_ID}' in parents`,
       "trashed = false",
       "mimeType = 'application/vnd.google-apps.folder'",
     ].join(" and ");
     const subfolders = await listDriveFiles({ accessToken, query: folderQuery });
+    messages.push(`found ${subfolders.length} subfolder(s)`);
 
     const processedFiles: string[] = [];
 
     for (const folder of subfolders) {
+      messages.push(`processing folder ${folder.name}`);
       const fileQuery = [`'${folder.id}' in parents`, "trashed = false"].join(" and ");
       const files = await listDriveFiles({ accessToken, query: fileQuery });
       const treeIds = files.map((file) => file.id);
@@ -101,7 +107,7 @@ export async function POST() {
 
       processedFiles.push(...files.map((file) => file.name));
 
-      await upsertDriveManifest({
+      const manifestResult = await upsertDriveManifest({
         folderId: folder.id,
         manifest: {
           folders: { [`docs/${folder.name}`]: folder.id },
@@ -112,9 +118,13 @@ export async function POST() {
         },
         replace: true,
       });
+      messages.push(
+        `${manifestResult.action} manifest.json for ${folder.name} (${manifestResult.id})`,
+      );
     }
 
-    return NextResponse.json({ processedFiles }, { status: 200 });
+    messages.push("manifest refresh complete");
+    return NextResponse.json({ processedFiles, messages }, { status: 200 });
   } catch (error: any) {
     console.error("refresh-manifest failed:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });

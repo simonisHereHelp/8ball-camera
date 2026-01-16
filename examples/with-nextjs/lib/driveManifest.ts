@@ -79,9 +79,12 @@ async function findManifestFileId(params: {
     `name = 'manifest.json' and '${folderId}' in parents and trashed = false`,
   );
 
-  const res = await fetch(`${DRIVE_LIST_URL}?q=${query}&fields=files(id,name)&pageSize=1`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+  const res = await fetch(
+    `${DRIVE_LIST_URL}?q=${query}&fields=files(id,name)&pageSize=1&supportsAllDrives=true&includeItemsFromAllDrives=true`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    },
+  );
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
@@ -97,9 +100,12 @@ async function readManifest(params: {
   accessToken: string;
 }): Promise<DriveManifest | null> {
   const { fileId, accessToken } = params;
-  const res = await fetch(`${DRIVE_LIST_URL}/${fileId}?alt=media`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+  const res = await fetch(
+    `${DRIVE_LIST_URL}/${fileId}?alt=media&supportsAllDrives=true`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    },
+  );
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
@@ -114,7 +120,7 @@ export async function upsertDriveManifest(params: {
   folderId: string;
   manifest: DriveManifest;
   replace?: boolean;
-}) {
+}): Promise<{ id: string; action: "created" | "updated" }> {
   const { folderId, manifest, replace } = params;
   const session = await auth();
   if (!session) throw new Error("Not authenticated.");
@@ -137,8 +143,8 @@ export async function upsertDriveManifest(params: {
 
   const body = buildMultipartBody(boundary, metadata, bodyBuffer, "application/json");
   const url = existingId
-    ? `${DRIVE_UPLOAD_URL}/${existingId}?uploadType=multipart&fields=id,name`
-    : `${DRIVE_UPLOAD_URL}?uploadType=multipart&fields=id,name`;
+    ? `${DRIVE_UPLOAD_URL}/${existingId}?uploadType=multipart&fields=id,name&supportsAllDrives=true`
+    : `${DRIVE_UPLOAD_URL}?uploadType=multipart&fields=id,name&supportsAllDrives=true`;
 
   const res = await fetch(url, {
     method: existingId ? "PATCH" : "POST",
@@ -153,4 +159,11 @@ export async function upsertDriveManifest(params: {
     const text = await res.text().catch(() => "");
     throw new Error(`Failed to upsert manifest.json: ${res.status} ${text}`);
   }
+
+  const data = (await res.json().catch(() => null)) as { id?: string } | null;
+  if (!data?.id) {
+    throw new Error("Drive upsert did not return manifest.json metadata.");
+  }
+
+  return { id: data.id, action: existingId ? "updated" : "created" };
 }

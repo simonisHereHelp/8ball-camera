@@ -30,6 +30,7 @@ function Content() {
     null,
   );
   const [manifestStatus, setManifestStatus] = useState<string | null>(null);
+  const [manifestMessages, setManifestMessages] = useState<string[]>([]);
   const isMobile = useIsMobile();
 
   const { data: session } = useSession();
@@ -38,6 +39,7 @@ function Content() {
   const handleClose = () => setDialogSource(null);
   const refreshManifest = async () => {
     setManifestStatus("processing manifest.json");
+    setManifestMessages([]);
 
     try {
       const response = await fetch("/api/refresh-manifest", { method: "POST" });
@@ -47,13 +49,17 @@ function Content() {
       }
 
       const json = (await response.json().catch(() => null)) as
-        | { processedFiles?: string[] }
+        | { processedFiles?: string[]; messages?: string[] }
         | null;
       const lastFile = json?.processedFiles?.at(-1) ?? "manifest.json";
       setManifestStatus(`processing ${lastFile}`);
+      if (json?.messages) {
+        setManifestMessages(json.messages);
+      }
     } catch (error) {
       console.error("Failed to refresh manifest:", error);
       setManifestStatus("processing failed");
+      setManifestMessages(["processing failed"]);
     }
   };
 
@@ -125,6 +131,13 @@ function Content() {
                   <p className="text-sm text-slate-500 dark:text-slate-400">
                     {manifestStatus}
                   </p>
+                ) : null}
+                {manifestMessages.length ? (
+                  <div className="text-xs text-slate-500 dark:text-slate-400 space-y-1">
+                    {manifestMessages.map((message, index) => (
+                      <div key={`${message}-${index}`}>{message}</div>
+                    ))}
+                  </div>
                 ) : null}
               </div>
             </div>
