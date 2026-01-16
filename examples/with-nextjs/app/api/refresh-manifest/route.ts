@@ -110,6 +110,7 @@ export async function POST() {
           inlineAssets,
           updatedAt: Date.now(),
         },
+        replace: true,
       });
     }
 

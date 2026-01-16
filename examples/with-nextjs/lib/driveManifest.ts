@@ -52,7 +52,15 @@ function mergeRecordArrays(
   return merged;
 }
 
-function mergeManifest(existing: DriveManifest | null, incoming: DriveManifest): DriveManifest {
+function mergeManifest(
+  existing: DriveManifest | null,
+  incoming: DriveManifest,
+  options?: { replace?: boolean },
+): DriveManifest {
+  if (options?.replace || !existing) {
+    return incoming;
+  }
+
   return {
     folders: { ...(existing?.folders ?? {}), ...incoming.folders },
     tree: mergeRecordArrays(existing?.tree ?? {}, incoming.tree),
@@ -105,8 +113,9 @@ async function readManifest(params: {
 export async function upsertDriveManifest(params: {
   folderId: string;
   manifest: DriveManifest;
+  replace?: boolean;
 }) {
-  const { folderId, manifest } = params;
+  const { folderId, manifest, replace } = params;
   const session = await auth();
   if (!session) throw new Error("Not authenticated.");
 
@@ -118,7 +127,7 @@ export async function upsertDriveManifest(params: {
     ? await readManifest({ fileId: existingId, accessToken })
     : null;
 
-  const merged = mergeManifest(existingManifest, manifest);
+  const merged = mergeManifest(existingManifest, manifest, { replace });
   const bodyBuffer = Buffer.from(JSON.stringify(merged, null, 2), "utf8");
   const boundary = "manifest-boundary-" + Date.now() + Math.random().toString(16);
 
