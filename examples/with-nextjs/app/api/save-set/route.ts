@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { Buffer } from "buffer";
 import { driveSaveFiles } from "@/lib/driveSaveFiles";
+import { upsertDriveManifest } from "@/lib/driveManifest";
 import { GPT_Router } from "@/lib/gptRouter";
 import {
   DRIVE_FALLBACK_FOLDER_ID,
@@ -15,16 +16,9 @@ interface SelectedCanonMeta {
   aliases?: string[];
 }
 
-function buildMarkdown(params: {
-  setName: string;
-  summary: string;
-  pageCount: number;
-}) {
-  const { setName, summary, pageCount } = params;
-  const images = Array.from({ length: Math.max(pageCount, 0) }).map((_, idx) => {
-    const pageNumber = idx + 1;
-    return `![${setName}-p${pageNumber}](./${setName}-p${pageNumber}.jpeg)`;
-  });
+function buildMarkdown(params: { setName: string; summary: string; imageNames: string[] }) {
+  const { setName, summary, imageNames } = params;
+  const images = imageNames.map((name) => `![${name}](./${name})`);
 
   return `# ${setName}
 
@@ -133,35 +127,86 @@ export async function POST(request: Request) {
     const { folderId: targetFolderId, topic } = await resolveDriveFolder(summary);
 
     const imageFiles = files;
+    const baseName = normalizeFilename(
+      normalizedSetName.replace(/[\\/:*?"<>|]/g, "_"),
+    );
+    const getSummaryFileName = () => normalizeFilename(`${baseName}.mdx`);
+    const getImageFileName = (file: File, index: number) => {
+      if (index < 0) {
+        throw new Error("Image file index not found.");
+      }
+      const extension = file.name.split(".").pop();
+      return normalizeFilename(`${baseName}-p${index + 1}.${extension ?? "dat"}`);
+    };
+    const imageNames = imageFiles.map((file, index) => getImageFileName(file, index));
+
     const markdown = buildMarkdown({
       setName: normalizedSetName,
       summary,
-      pageCount: imageFiles.length,
+      imageNames,
     });
 
-    const summaryFile = new File([markdown], "summary.md", { type: "text/markdown" });
+    const summaryFile = new File([markdown], "summary.mdx", { type: "text/markdown" });
     const uploadFiles = [...imageFiles, summaryFile];
 
-    await driveSaveFiles({
+    const uploadResult = await driveSaveFiles({
       folderId: targetFolderId,
       files: uploadFiles,
       fileToUpload: async (file) => {
-        const baseName = normalizeFilename(
-          normalizedSetName.replace(/[\\/:*?"<>|]/g, "_"),
-        );
-        const extension = file.name.split(".").pop();
-
-        const fileName = normalizeFilename(
-          file === summaryFile || file.name === "summary.md"
-            ? `${baseName}.md`
-            : `${baseName}-p${imageFiles.indexOf(file) + 1}.${extension ?? "dat"}`,
-        );
+        const fileName =
+          file === summaryFile || file.name === "summary.mdx"
+            ? getSummaryFileName()
+            : getImageFileName(file, imageFiles.indexOf(file));
 
         return {
           name: fileName,
           buffer: Buffer.from(await file.arrayBuffer()),
           mimeType: file.type,
         };
+      },
+    });
+
+    const fileIdByName = new Map(
+      uploadResult.files.map((file) => [file.name, file.id]),
+    );
+    const summaryId = fileIdByName.get(getSummaryFileName()) ?? null;
+    const imageIds = imageNames
+      .map((name) => fileIdByName.get(name))
+      .filter((id): id is string => Boolean(id));
+    const folderKey = topic ?? "Docs";
+    const filesById = Object.fromEntries(
+      uploadResult.files.map((file) => [
+        file.id,
+        {
+          name: file.name,
+          mime: file.mimeType,
+        },
+      ]),
+    );
+    const inlineAssets = summaryId
+      ? {
+          [summaryId]: Object.fromEntries(
+            imageNames
+              .map((name) => {
+                const id = fileIdByName.get(name);
+                if (!id) return null;
+                return [`./${name}`, id] as const;
+              })
+              .filter((entry): entry is [string, string] => Boolean(entry)),
+          ),
+        }
+      : {};
+
+    await upsertDriveManifest({
+      folderId: uploadResult.folderId,
+      manifest: {
+        folders: { [folderKey]: uploadResult.folderId },
+        tree: {
+          [folderKey]: [summaryId, ...imageIds].filter((id): id is string => Boolean(id)),
+        },
+        files: filesById,
+        inlineAssets,
+        updatedAt: Date.now(),
       },
     });
 
