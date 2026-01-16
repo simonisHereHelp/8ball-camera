@@ -4,7 +4,7 @@ import { normalizeFilename } from "@/lib/normalizeFilename";
 
 
 const DRIVE_UPLOAD_URL =
-  "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink,webContentLink";
+  "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,mimeType";
 
 function buildMultipartBody(
   boundary: string,
@@ -44,7 +44,10 @@ export async function driveSaveFiles(params: {
     buffer: Buffer;
     mimeType: string;
   }>;
-}) {
+}): Promise<{
+  folderId: string;
+  files: { id: string; name: string; mimeType: string }[];
+}> {
   const { folderId, files, fileToUpload } = params;
   const session = await auth();
   if (!session) throw new Error("Not authenticated.");
@@ -54,6 +57,8 @@ export async function driveSaveFiles(params: {
   if (!accessToken) throw new Error("Missing Google Drive access token on session.");
 
   const resolvedFolderId = await ensureFolderPath(folderId, accessToken);
+
+  const uploadedFiles: { id: string; name: string; mimeType: string }[] = [];
 
   for (const file of files) {
     const { name, buffer, mimeType } = await fileToUpload(file);
@@ -77,8 +82,21 @@ export async function driveSaveFiles(params: {
       throw new Error(`Drive upload failed: ${res.status} ${text}`);
     }
 
+    const uploaded = (await res.json().catch(() => null)) as
+      | { id?: string; name?: string; mimeType?: string }
+      | null;
+    if (!uploaded?.id || !uploaded?.name) {
+      throw new Error("Drive upload did not return file metadata.");
+    }
+
+    uploadedFiles.push({
+      id: uploaded.id,
+      name: uploaded.name,
+      mimeType: uploaded.mimeType ?? mimeType,
+    });
   }
 
+  return { folderId: resolvedFolderId, files: uploadedFiles };
 }
 
 async function ensureFolderPath(folderPath: string, accessToken: string): Promise<string> {
