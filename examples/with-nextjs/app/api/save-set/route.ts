@@ -183,17 +183,15 @@ export async function POST(request: Request) {
         },
       ]),
     );
+    const inlineAssetEntries = imageNames.reduce<[string, string][]>((acc, name) => {
+      const id = fileIdByName.get(name);
+      if (!id) return acc;
+      acc.push([`./${name}`, id]);
+      return acc;
+    }, []);
     const inlineAssets = summaryId
       ? {
-          [summaryId]: Object.fromEntries(
-            imageNames
-              .map((name) => {
-                const id = fileIdByName.get(name);
-                if (!id) return null;
-                return [`./${name}`, id] as const;
-              })
-              .filter((entry): entry is [string, string] => Boolean(entry)),
-          ),
+          [summaryId]: Object.fromEntries(inlineAssetEntries),
         }
       : {};
 
