@@ -119,7 +119,7 @@ function Content() {
                     onClick={refreshManifest}
                     className="h-12 !px-8 !py-3 text-lg font-medium rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 cursor-pointer"
                   >
-                    #8635 Drive Manifest
+                    Drive Manif
                   </Button>
                 </div>
                 <p className="text-sm text-slate-500 dark:text-slate-400">

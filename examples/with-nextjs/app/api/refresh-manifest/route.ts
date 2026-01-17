@@ -82,7 +82,20 @@ export async function POST() {
       "trashed = false",
       "mimeType = 'application/vnd.google-apps.folder'",
     ].join(" and ");
-    const subfolders = await listDriveFiles({ accessToken, query: folderQuery });
+    const rootFolders = await listDriveFiles({ accessToken, query: folderQuery });
+    const docsFolder = rootFolders.find(
+      (folder) => folder.name.trim().toLowerCase() === "docs",
+    );
+    const targetFolderId = docsFolder?.id ?? BASE_DRIVE_FOLDER_ID;
+    if (docsFolder) {
+      messages.push(`using docs folder ${docsFolder.name}`);
+    }
+    const targetFolderQuery = [
+      `'${targetFolderId}' in parents`,
+      "trashed = false",
+      "mimeType = 'application/vnd.google-apps.folder'",
+    ].join(" and ");
+    const subfolders = await listDriveFiles({ accessToken, query: targetFolderQuery });
     messages.push(`found ${subfolders.length} subfolder(s)`);
 
     const processedFiles: string[] = [];
