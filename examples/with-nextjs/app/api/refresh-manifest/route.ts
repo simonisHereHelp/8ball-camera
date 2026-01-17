@@ -9,6 +9,10 @@ interface DriveFile {
   id: string;
   name: string;
   mimeType: string;
+  shortcutDetails?: {
+    targetId: string;
+    targetMimeType: string;
+  };
 }
 
 async function listDriveFiles(params: {
@@ -22,7 +26,10 @@ async function listDriveFiles(params: {
   do {
     const url = new URL(DRIVE_LIST_URL);
     url.searchParams.set("q", query);
-    url.searchParams.set("fields", "nextPageToken,files(id,name,mimeType)");
+    url.searchParams.set(
+      "fields",
+      "nextPageToken,files(id,name,mimeType,shortcutDetails(targetId,targetMimeType))",
+    );
     url.searchParams.set("pageSize", "1000");
     url.searchParams.set("supportsAllDrives", "true");
     url.searchParams.set("includeItemsFromAllDrives", "true");
@@ -45,6 +52,12 @@ async function listDriveFiles(params: {
   } while (pageToken);
 
   return files;
+}
+
+function isFolderLike(file: DriveFile) {
+  if (file.mimeType === "application/vnd.google-apps.folder") return true;
+  if (file.mimeType !== "application/vnd.google-apps.shortcut") return false;
+  return file.shortcutDetails?.targetMimeType === "application/vnd.google-apps.folder";
 }
 
 function buildInlineAssets(params: { markdownId: string; imageFiles: DriveFile[] }) {
@@ -77,32 +90,39 @@ export async function POST() {
   try {
     const messages: string[] = [];
     messages.push("starting manifest refresh");
-    const folderQuery = [
-      `'${BASE_DRIVE_FOLDER_ID}' in parents`,
-      "trashed = false",
-      "mimeType = 'application/vnd.google-apps.folder'",
-    ].join(" and ");
-    const rootFolders = await listDriveFiles({ accessToken, query: folderQuery });
+    const rootQuery = [`'${BASE_DRIVE_FOLDER_ID}' in parents`, "trashed = false"].join(
+      " and ",
+    );
+    const rootItems = await listDriveFiles({ accessToken, query: rootQuery });
+    const rootFolders = rootItems.filter(isFolderLike);
     const docsFolder = rootFolders.find(
       (folder) => folder.name.trim().toLowerCase() === "docs",
     );
-    const targetFolderId = docsFolder?.id ?? BASE_DRIVE_FOLDER_ID;
+    const targetFolderId =
+      docsFolder?.shortcutDetails?.targetId ?? docsFolder?.id ?? BASE_DRIVE_FOLDER_ID;
     if (docsFolder) {
       messages.push(`using docs folder ${docsFolder.name}`);
     }
     const targetFolderQuery = [
       `'${targetFolderId}' in parents`,
       "trashed = false",
-      "mimeType = 'application/vnd.google-apps.folder'",
     ].join(" and ");
-    const subfolders = await listDriveFiles({ accessToken, query: targetFolderQuery });
+    const targetItems = await listDriveFiles({
+      accessToken,
+      query: targetFolderQuery,
+    });
+    const subfolders = targetItems.filter(isFolderLike);
     messages.push(`found ${subfolders.length} subfolder(s)`);
 
     const processedFiles: string[] = [];
 
     for (const folder of subfolders) {
+      const effectiveFolderId = folder.shortcutDetails?.targetId ?? folder.id;
       messages.push(`processing folder ${folder.name}`);
-      const fileQuery = [`'${folder.id}' in parents`, "trashed = false"].join(" and ");
+      const fileQuery = [
+        `'${effectiveFolderId}' in parents`,
+        "trashed = false",
+      ].join(" and ");
       const files = await listDriveFiles({ accessToken, query: fileQuery });
       const treeIds = files.map((file) => file.id);
       const filesById = Object.fromEntries(
@@ -121,9 +141,9 @@ export async function POST() {
       processedFiles.push(...files.map((file) => file.name));
 
       const manifestResult = await upsertDriveManifest({
-        folderId: folder.id,
+        folderId: effectiveFolderId,
         manifest: {
-          folders: { [`docs/${folder.name}`]: folder.id },
+          folders: { [`docs/${folder.name}`]: effectiveFolderId },
           tree: { [`docs/${folder.name}`]: treeIds },
           files: filesById,
           inlineAssets,
