@@ -131,11 +131,23 @@ export async function POST(request: Request) {
       normalizedSetName.replace(/[\\/:*?"<>|]/g, "_"),
     );
     const getSummaryFileName = () => normalizeFilename(`${baseName}.mdx`);
+    const getImageExtension = (file: File) => {
+      const mimeType = file.type?.toLowerCase() ?? "";
+      if (mimeType.startsWith("image/")) {
+        const subtype = mimeType.split("/")[1] ?? "";
+        if (subtype) {
+          return subtype;
+        }
+      }
+
+      return file.name.split(".").pop() ?? "dat";
+    };
+
     const getImageFileName = (file: File, index: number) => {
       if (index < 0) {
         throw new Error("Image file index not found.");
       }
-      const extension = file.name.split(".").pop();
+      const extension = getImageExtension(file);
       return normalizeFilename(`${baseName}-p${index + 1}.${extension ?? "dat"}`);
     };
     const imageNames = imageFiles.map((file, index) => getImageFileName(file, index));
