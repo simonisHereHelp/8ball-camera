@@ -31,6 +31,7 @@ async function listDriveFiles(params: {
       "nextPageToken,files(id,name,mimeType,shortcutDetails(targetId,targetMimeType))",
     );
     url.searchParams.set("pageSize", "1000");
+    url.searchParams.set("corpora", "allDrives");
     url.searchParams.set("supportsAllDrives", "true");
     url.searchParams.set("includeItemsFromAllDrives", "true");
     if (pageToken) url.searchParams.set("pageToken", pageToken);
