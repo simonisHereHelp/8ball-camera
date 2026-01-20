@@ -9,6 +9,10 @@ interface DriveFile {
   id: string;
   name: string;
   mimeType: string;
+  shortcutDetails?: {
+    targetId: string;
+    targetMimeType: string;
+  };
 }
 
 async function listDriveFiles(params: {
@@ -22,8 +26,12 @@ async function listDriveFiles(params: {
   do {
     const url = new URL(DRIVE_LIST_URL);
     url.searchParams.set("q", query);
-    url.searchParams.set("fields", "nextPageToken,files(id,name,mimeType)");
+    url.searchParams.set(
+      "fields",
+      "nextPageToken,files(id,name,mimeType,shortcutDetails(targetId,targetMimeType))",
+    );
     url.searchParams.set("pageSize", "1000");
+    url.searchParams.set("corpora", "allDrives");
     url.searchParams.set("supportsAllDrives", "true");
     url.searchParams.set("includeItemsFromAllDrives", "true");
     if (pageToken) url.searchParams.set("pageToken", pageToken);
@@ -45,6 +53,12 @@ async function listDriveFiles(params: {
   } while (pageToken);
 
   return files;
+}
+
+function isFolderLike(file: DriveFile) {
+  if (file.mimeType === "application/vnd.google-apps.folder") return true;
+  if (file.mimeType !== "application/vnd.google-apps.shortcut") return false;
+  return file.shortcutDetails?.targetMimeType === "application/vnd.google-apps.folder";
 }
 
 function buildInlineAssets(params: { markdownId: string; imageFiles: DriveFile[] }) {
@@ -77,20 +91,71 @@ export async function POST() {
   try {
     const messages: string[] = [];
     messages.push("starting manifest refresh");
-    const folderQuery = [
-      `'${BASE_DRIVE_FOLDER_ID}' in parents`,
+    const rootQuery = [`'${BASE_DRIVE_FOLDER_ID}' in parents`, "trashed = false"].join(
+      " and ",
+    );
+    const rootItems = await listDriveFiles({ accessToken, query: rootQuery });
+    const rootFolders = rootItems.filter(isFolderLike);
+    const docsFolder = rootFolders.find(
+      (folder) => folder.name.trim().toLowerCase() === "docs",
+    );
+    const targetFolderId =
+      docsFolder?.shortcutDetails?.targetId ?? docsFolder?.id ?? BASE_DRIVE_FOLDER_ID;
+    if (docsFolder) {
+      messages.push(`using docs folder ${docsFolder.name}`);
+    }
+    const targetFolderQuery = [
+      `'${targetFolderId}' in parents`,
       "trashed = false",
-      "mimeType = 'application/vnd.google-apps.folder'",
     ].join(" and ");
-    const subfolders = await listDriveFiles({ accessToken, query: folderQuery });
+    const targetItems = await listDriveFiles({
+      accessToken,
+      query: targetFolderQuery,
+    });
+    messages.push(
+      `target items: ${targetItems
+        .map(
+          (item) =>
+            `${item.name}[${item.mimeType}${
+              item.shortcutDetails
+                ? `->${item.shortcutDetails.targetMimeType}:${item.shortcutDetails.targetId}`
+                : ""
+            }]`,
+        )
+        .join(", ")}`,
+    );
+    const subfolders = targetItems.filter(isFolderLike);
+    const skippedItems = targetItems.filter((item) => !isFolderLike(item));
+    if (skippedItems.length) {
+      messages.push(
+        `skipped items: ${skippedItems
+          .map(
+            (item) =>
+              `${item.name}[${item.mimeType}${
+                item.shortcutDetails
+                  ? `->${item.shortcutDetails.targetMimeType}:${item.shortcutDetails.targetId}`
+                  : ""
+              }]`,
+          )
+          .join(", ")}`,
+      );
+    }
     messages.push(`found ${subfolders.length} subfolder(s)`);
 
     const processedFiles: string[] = [];
 
     for (const folder of subfolders) {
+      const effectiveFolderId = folder.shortcutDetails?.targetId ?? folder.id;
+      messages.push(
+        `folder ${folder.name} id=${folder.id} effectiveId=${effectiveFolderId} mime=${folder.mimeType}`,
+      );
       messages.push(`processing folder ${folder.name}`);
-      const fileQuery = [`'${folder.id}' in parents`, "trashed = false"].join(" and ");
+      const fileQuery = [
+        `'${effectiveFolderId}' in parents`,
+        "trashed = false",
+      ].join(" and ");
       const files = await listDriveFiles({ accessToken, query: fileQuery });
+      messages.push(`found ${files.length} files in ${folder.name}`);
       const treeIds = files.map((file) => file.id);
       const filesById = Object.fromEntries(
         files.map((file) => [file.id, { name: file.name, mime: file.mimeType }]),
@@ -99,6 +164,9 @@ export async function POST() {
         file.name.toLowerCase().match(/\.(md|mdx)$/),
       );
       const imageFiles = files.filter((file) => file.mimeType.startsWith("image/"));
+      messages.push(
+        `markdown=${markdownFiles.length} images=${imageFiles.length} for ${folder.name}`,
+      );
 
       const inlineAssets = markdownFiles.reduce<Record<string, Record<string, string>>>(
         (acc, file) => ({ ...acc, ...buildInlineAssets({ markdownId: file.id, imageFiles }) }),
@@ -108,9 +176,9 @@ export async function POST() {
       processedFiles.push(...files.map((file) => file.name));
 
       const manifestResult = await upsertDriveManifest({
-        folderId: folder.id,
+        folderId: effectiveFolderId,
         manifest: {
-          folders: { [`docs/${folder.name}`]: folder.id },
+          folders: { [`docs/${folder.name}`]: effectiveFolderId },
           tree: { [`docs/${folder.name}`]: treeIds },
           files: filesById,
           inlineAssets,
@@ -118,6 +186,9 @@ export async function POST() {
         },
         replace: true,
       });
+      messages.push(
+        `manifest payload for ${folder.name} tree=${treeIds.length} files=${Object.keys(filesById).length} inlineAssets=${Object.keys(inlineAssets).length}`,
+      );
       messages.push(
         `${manifestResult.action} manifest.json for ${folder.name} (${manifestResult.id})`,
       );
