@@ -8,7 +8,7 @@ import {
   DRIVE_FALLBACK_FOLDER_ID,
   PROMPT_SET_NAME_SOURCE,
 } from "@/lib/jsonCanonSources";
-import { resolveDriveFolder } from "@/lib/driveSubfolderResolver";
+import { buildFolderPath, resolveDriveFolder } from "@/lib/driveSubfolderResolver";
 import { normalizeFilename } from "@/lib/normalizeFilename";
 
 interface SelectedCanonMeta {
@@ -104,6 +104,9 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const summary = (formData.get("summary") as string | null)?.trim() ?? "";
     const selectedCanonRaw = formData.get("selectedCanon");
+    const targetFolderIdRaw = (formData.get("targetFolderId") as string | null)
+      ?.trim()
+      .replace(/\s+/g, "");
     let selectedCanon: SelectedCanonMeta | null = null;
     if (typeof selectedCanonRaw === "string") {
       try {
@@ -124,7 +127,10 @@ export async function POST(request: Request) {
     const normalizedSetName = normalizeFilename(setName);
 
     // 儲存檔案到 Google Drive (auto-route into active subfolders)
-    const { folderId: targetFolderId, topic } = await resolveDriveFolder(summary);
+    const { folderId: resolvedFolderId, topic } = await resolveDriveFolder(summary);
+    const targetFolderId = targetFolderIdRaw
+      ? buildFolderPath(targetFolderIdRaw, BASE_DRIVE_FOLDER_ID)
+      : resolvedFolderId;
 
     const imageFiles = files;
     const baseName = normalizeFilename(

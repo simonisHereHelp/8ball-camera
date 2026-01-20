@@ -18,6 +18,10 @@ import {
   type IssuerCanonEntry,
 } from "./issuerCanonUtils";
 import { playSuccessChime } from "./soundEffects";
+import {
+  fetchActiveSubfolderList,
+} from "./activeSubfolderUtils";
+import type { ActiveSubfolder } from "@/lib/typesDictionary";
 
 interface UseImageCaptureState {
   state: State;
@@ -53,6 +57,14 @@ export const useImageCaptureState = (
   const [selectedCanon, setSelectedCanon] = useState<IssuerCanonEntry | null>(
     null,
   );
+  const [activeSubfolders, setActiveSubfolders] = useState<ActiveSubfolder[]>(
+    [],
+  );
+  const [activeSubfoldersLoading, setActiveSubfoldersLoading] = useState(false);
+  const [activeSubfolderError, setActiveSubfolderError] = useState("");
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+  const [fallbackFolderId, setFallbackFolderId] = useState<string | null>(null);
+  const [showSubfolderPicker, setShowSubfolderPicker] = useState(false);
 
   const cameraRef = useRef<WebCameraHandler>(null);
   const { data: session } = useSession();
@@ -92,6 +104,11 @@ export const useImageCaptureState = (
     setIssuerCanons([]);
     setCanonError("");
     setSelectedCanon(null);
+    setActiveSubfolders([]);
+    setActiveSubfolderError("");
+    setSelectedFolderId(null);
+    setFallbackFolderId(null);
+    setShowSubfolderPicker(false);
     setCaptureSource(initialSource);
     setIsProcessingCapture(false);
     onOpenChange?.(false);
@@ -174,6 +191,7 @@ export const useImageCaptureState = (
     (source: "camera" | "photos") => {
       setCaptureSource(source);
       setShowGallery(false);
+      setShowSubfolderPicker(false);
       setError("");
       setSaveMessage("");
       setCameraError(false);
@@ -203,6 +221,7 @@ export const useImageCaptureState = (
     // After summarize finishes, go straight to gallery if successful
     if (didSummarize && images.length > 0) {
       setShowGallery(true);
+      setShowSubfolderPicker(false);
       playSuccessChime();
     }
   }, [images]);
@@ -229,6 +248,9 @@ export const useImageCaptureState = (
   const selectCanon = useCallback(
     (canon: IssuerCanonEntry) => {
       setSelectedCanon(canon);
+      if (canon.targetFolderId) {
+        setSelectedFolderId(canon.targetFolderId);
+      }
       setEditableSummary((current) =>
         applyCanonToSummary({
           canon,
@@ -240,11 +262,48 @@ export const useImageCaptureState = (
     [draftSummary],
   );
 
+  const refreshActiveSubfolders = useCallback(async () => {
+    if (activeSubfoldersLoading) return;
+    setActiveSubfoldersLoading(true);
+    setActiveSubfolderError("");
+    try {
+      const { subfolders, fallbackFolderId: fallback } =
+        await fetchActiveSubfolderList();
+      setActiveSubfolders(subfolders);
+      setFallbackFolderId(fallback ?? null);
+      setSelectedFolderId((current) => {
+        if (current) return current;
+        if (selectedCanon?.targetFolderId) return selectedCanon.targetFolderId;
+        return fallback ?? subfolders[0]?.folderId ?? null;
+      });
+    } catch (err) {
+      console.error("fetchActiveSubfolderList failed:", err);
+      setActiveSubfolderError(
+        err instanceof Error
+          ? err.message
+          : "Unable to load active subfolders.",
+      );
+    } finally {
+      setActiveSubfoldersLoading(false);
+    }
+  }, [activeSubfoldersLoading, selectedCanon]);
+
   useEffect(() => {
     if (showGallery && !issuerCanons.length && !issuerCanonsLoading) {
       refreshCanons();
     }
   }, [showGallery, issuerCanons.length, issuerCanonsLoading, refreshCanons]);
+
+  useEffect(() => {
+    if (showSubfolderPicker && !activeSubfolders.length && !activeSubfoldersLoading) {
+      refreshActiveSubfolders();
+    }
+  }, [
+    showSubfolderPicker,
+    activeSubfolders.length,
+    activeSubfoldersLoading,
+    refreshActiveSubfolders,
+  ]);
 
   const handleSaveImages = useCallback(async () => {
     if (!session) return;
@@ -264,10 +323,12 @@ export const useImageCaptureState = (
       draftSummary, // Original AI draft
       finalSummary, // Edited and final content
       selectedCanon,
+      targetFolderId: selectedFolderId,
       setIsSaving,
       onError: setError,
       onSuccess: ({ setName: savedSetName, targetFolderId, topic }) => {
         setShowGallery(false); // Close gallery after success
+        setShowSubfolderPicker(false);
         const lastSegment = targetFolderId?.split("/").pop() ?? "";
         const folderPath = topic || lastSegment || "Drive_unknown";
         const displayPath = folderPath.replace(/^Drive_/, "");
@@ -279,11 +340,19 @@ export const useImageCaptureState = (
         setDraftSummary("");
         setEditableSummary("");
         setSelectedCanon(null);
+        setSelectedFolderId(null);
         playSuccessChime();
       },
     });
   // Added draftSummary and editableSummary to dependencies
-  }, [session, images, draftSummary, editableSummary, selectedCanon]);
+  }, [
+    session,
+    images,
+    draftSummary,
+    editableSummary,
+    selectedCanon,
+    selectedFolderId,
+  ]);
 
   const state: State = {
     images,
@@ -303,6 +372,12 @@ export const useImageCaptureState = (
     issuerCanonsLoading,
     canonError,
     selectedCanon,
+    activeSubfolders,
+    activeSubfoldersLoading,
+    activeSubfolderError,
+    selectedFolderId,
+    fallbackFolderId,
+    showSubfolderPicker,
   };
 
   const actions: Actions = {
@@ -322,6 +397,9 @@ export const useImageCaptureState = (
     setCanonError,
     refreshCanons,
     selectCanon,
+    refreshActiveSubfolders,
+    setSelectedFolderId,
+    setShowSubfolderPicker,
   };
 
   return { state, actions, cameraRef };

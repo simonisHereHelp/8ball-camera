@@ -5,7 +5,7 @@ import {
   PROMPT_DESIGNATED_SUBFOLDER_SOURCE,
 } from "./jsonCanonSources";
 
-interface ActiveSubfolder {
+export interface ActiveSubfolder {
   topic: string;
   folderId: string;
   keywords?: string[];
@@ -19,7 +19,7 @@ interface SubfolderConfig {
 
 const BASE_DRIVE_FOLDER_ID = process.env.DRIVE_FOLDER_ID;
 
-const buildFolderPath = (slugOrPath: string, base: string) => {
+export const buildFolderPath = (slugOrPath: string, base: string) => {
   if (!slugOrPath) return base;
   if (slugOrPath.startsWith(`${base}/`) || slugOrPath === base) return slugOrPath;
   if (slugOrPath.includes("/")) return slugOrPath;
@@ -67,6 +67,27 @@ const fetchActiveSubfolders = async () => {
     console.warn("Failed to load active subfolder config:", err);
     return { subfolders: [] };
   }
+};
+
+export const listActiveSubfolders = async (): Promise<{
+  subfolders: ActiveSubfolder[];
+  fallbackFolderId?: string;
+}> => {
+  if (!BASE_DRIVE_FOLDER_ID) {
+    throw new Error("Missing DRIVE_FOLDER_ID for base path");
+  }
+
+  const { subfolders, fallbackFolderId: configFallback } = await fetchActiveSubfolders();
+  const fallbackFolderId = buildFolderPath(
+    configFallback || DRIVE_FALLBACK_FOLDER_ID || BASE_DRIVE_FOLDER_ID,
+    BASE_DRIVE_FOLDER_ID,
+  );
+  const resolved = subfolders.map((folder) => ({
+    ...folder,
+    folderId: buildFolderPath(folder.folderId || folder.topic, BASE_DRIVE_FOLDER_ID),
+  }));
+
+  return { subfolders: resolved, fallbackFolderId };
 };
 
 async function inferTopicFromLLM(

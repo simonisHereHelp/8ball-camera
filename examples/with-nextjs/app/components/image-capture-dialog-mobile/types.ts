@@ -1,7 +1,7 @@
 // app/components/image-capture-dialog-mobile/types.ts
 
 import type { FacingMode } from "@shivantra/react-web-camera";
-import type { IssuerCanonEntry } from "@/types/issuerCanon";
+import type { IssuerCanonEntry, ActiveSubfolder } from "@/lib/typesDictionary";
 
 export interface Image {
   url: string;
@@ -27,6 +27,12 @@ export interface State {
   issuerCanonsLoading: boolean;
   canonError: string;
   selectedCanon: IssuerCanonEntry | null;
+  activeSubfolders: ActiveSubfolder[];
+  activeSubfoldersLoading: boolean;
+  activeSubfolderError: string;
+  selectedFolderId: string | null;
+  fallbackFolderId: string | null;
+  showSubfolderPicker: boolean;
 }
 
 export interface Actions {
@@ -47,4 +53,7 @@ export interface Actions {
   setCanonError: (value: string) => void;
   refreshCanons: () => Promise<void>;
   selectCanon: (canon: IssuerCanonEntry) => void;
+  refreshActiveSubfolders: () => Promise<void>;
+  setSelectedFolderId: (folderId: string | null) => void;
+  setShowSubfolderPicker: (show: boolean) => void;
 }

@@ -20,6 +20,12 @@ export function GalleryView({ state, actions }: GalleryViewProps) {
     issuerCanonsLoading,
     canonError,
     selectedCanon,
+    activeSubfolders,
+    activeSubfoldersLoading,
+    activeSubfolderError,
+    selectedFolderId,
+    fallbackFolderId,
+    showSubfolderPicker,
   } = state;
   const {
     deleteImage,
@@ -28,11 +34,50 @@ export function GalleryView({ state, actions }: GalleryViewProps) {
     setEditableSummary,
     refreshCanons,
     selectCanon,
+    refreshActiveSubfolders,
+    setSelectedFolderId,
+    setShowSubfolderPicker,
     // REMOVED setDraftSummary from destructuring as UI should only edit editableSummary
   } = actions;
 
   // REMOVED handleSummaryBlur - user edits directly to editableSummary, which is passed to handleSave.
   // The 'draftSummary' must remain in its original state as per instruction.
+
+  const handleCloseGallery = () => {
+    setShowSubfolderPicker(false);
+    setShowGallery(false);
+  };
+
+  const baseFolderOptions = [
+    ...(fallbackFolderId
+      ? [{ id: fallbackFolderId, label: "Default folder" }]
+      : []),
+    ...activeSubfolders.map((folder) => ({
+      id: folder.folderId,
+      label: folder.topic,
+      description: folder.description,
+    })),
+  ];
+
+  const needsCanonDefault =
+    selectedFolderId &&
+    !baseFolderOptions.some((option) => option.id === selectedFolderId);
+
+  const folderOptions = [
+    ...(needsCanonDefault
+      ? [
+          {
+            id: selectedFolderId,
+            label: selectedCanon?.master
+              ? `${selectedCanon.master} (Canon default)`
+              : "Canon default",
+          },
+        ]
+      : []),
+    ...baseFolderOptions,
+  ];
+
+  const selectedFolder = folderOptions.find((option) => option.id === selectedFolderId);
 
   return (
     <div className="absolute inset-0 bg-black/90 backdrop-blur-sm z-40 sm:rounded-[2rem] flex flex-col">
@@ -44,7 +89,7 @@ export function GalleryView({ state, actions }: GalleryViewProps) {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => setShowGallery(false)}
+          onClick={handleCloseGallery}
           className="text-white hover:bg-white/20 rounded-full cursor-pointer"
         >
           <X className="w-5 h-5" />
@@ -99,7 +144,9 @@ export function GalleryView({ state, actions }: GalleryViewProps) {
             <div className="sm:w-56 p-3 rounded-lg bg-white/5 border border-white/10 flex flex-col gap-2">
               <div className="flex items-center justify-between gap-2">
                 <div>
-                  <h5 className="text-xs font-semibold text-blue-200">Issuer Canons</h5>
+                  <h5 className="text-xs font-semibold text-blue-200">
+                    Issuer Canons
+                  </h5>
                   <p className="text-[11px] text-blue-300/70">
                     Tap a canon to seed the summary.
                   </p>
@@ -168,7 +215,24 @@ export function GalleryView({ state, actions }: GalleryViewProps) {
       </div>
 
       {/* Gallery Footer */}
-      <div className="p-4 border-t border-white/20">
+      <div className="p-4 border-t border-white/20 space-y-2">
+        <div className="flex items-center justify-between text-[11px] text-blue-200/90">
+          <span>
+            Target folder:{" "}
+            <strong>{selectedFolder?.label ?? "Auto (recommended)"}</strong>
+          </span>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 px-3 text-blue-100 hover:bg-white/10"
+            onClick={() => {
+              setShowSubfolderPicker(true);
+              refreshActiveSubfolders();
+            }}
+          >
+            Choose folder
+          </Button>
+        </div>
         <Button
           onClick={handleSaveImages}
           // Check disabled state against images and the currently edited summary
@@ -188,6 +252,82 @@ export function GalleryView({ state, actions }: GalleryViewProps) {
           )}
         </Button>
       </div>
+
+      {showSubfolderPicker && (
+        <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="w-full max-w-sm rounded-xl bg-slate-950 border border-white/10 p-4 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <h4 className="text-sm font-semibold text-blue-100">
+                  Choose target folder
+                </h4>
+                <p className="text-[11px] text-blue-200/70">
+                  Default is preselected from the tagged canon.
+                </p>
+              </div>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7 text-blue-100 hover:bg-white/10"
+                onClick={refreshActiveSubfolders}
+                disabled={activeSubfoldersLoading}
+              >
+                <Loader2
+                  className={`w-4 h-4 ${activeSubfoldersLoading ? "animate-spin" : ""}`}
+                />
+              </Button>
+            </div>
+
+            <select
+              value={selectedFolderId ?? ""}
+              onChange={(e) => setSelectedFolderId(e.target.value || null)}
+              className="w-full rounded-md bg-black/40 border border-white/20 text-sm text-blue-50 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              {!selectedFolderId && (
+                <option value="" disabled>
+                  Select a folder
+                </option>
+              )}
+              {folderOptions.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+
+            {activeSubfolderError && (
+              <p className="text-[11px] text-red-200 bg-red-900/40 border border-red-400/40 rounded-md p-2">
+                {activeSubfolderError}
+              </p>
+            )}
+            {!activeSubfolderError && activeSubfoldersLoading && (
+              <p className="text-[11px] text-blue-200">Loading folders…</p>
+            )}
+            {selectedFolder && (
+              <p className="text-[11px] text-blue-200/90">
+                Selected: <strong>{selectedFolder.label}</strong>
+                {selectedFolder.description ? ` — ${selectedFolder.description}` : ""}
+              </p>
+            )}
+
+            <div className="flex gap-2 pt-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowSubfolderPicker(false)}
+                className="flex-1 bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white"
+              >
+                Close
+              </Button>
+              <Button
+                onClick={() => setShowSubfolderPicker(false)}
+                className="flex-1 bg-blue-400 hover:bg-blue-300 text-white"
+              >
+                Use this folder
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
