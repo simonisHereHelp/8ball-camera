@@ -20,6 +20,12 @@ export function GalleryView({ state, actions }: GalleryViewProps) {
     issuerCanonsLoading,
     canonError,
     selectedCanon,
+    activeSubfolders,
+    activeSubfoldersLoading,
+    activeSubfolderError,
+    selectedFolderId,
+    fallbackFolderId,
+    showSubfolderPicker,
   } = state;
   const {
     deleteImage,
@@ -28,11 +34,59 @@ export function GalleryView({ state, actions }: GalleryViewProps) {
     setEditableSummary,
     refreshCanons,
     selectCanon,
+    refreshActiveSubfolders,
+    setSelectedFolderId,
+    setShowSubfolderPicker,
     // REMOVED setDraftSummary from destructuring as UI should only edit editableSummary
   } = actions;
 
   // REMOVED handleSummaryBlur - user edits directly to editableSummary, which is passed to handleSave.
   // The 'draftSummary' must remain in its original state as per instruction.
+
+  const handleCloseGallery = () => {
+    setShowSubfolderPicker(false);
+    setShowGallery(false);
+  };
+
+  const handleNextStep = () => {
+    setShowSubfolderPicker(true);
+    refreshActiveSubfolders();
+  };
+
+  const handleBackToSummary = () => {
+    setShowSubfolderPicker(false);
+  };
+
+  const baseFolderOptions = [
+    ...(fallbackFolderId
+      ? [{ id: fallbackFolderId, label: "Default folder" }]
+      : []),
+    ...activeSubfolders.map((folder) => ({
+      id: folder.folderId,
+      label: folder.topic,
+      description: folder.description,
+    })),
+  ];
+
+  const needsCanonDefault =
+    selectedFolderId &&
+    !baseFolderOptions.some((option) => option.id === selectedFolderId);
+
+  const folderOptions = [
+    ...(needsCanonDefault
+      ? [
+          {
+            id: selectedFolderId,
+            label: selectedCanon?.master
+              ? `${selectedCanon.master} (Canon default)`
+              : "Canon default",
+          },
+        ]
+      : []),
+    ...baseFolderOptions,
+  ];
+
+  const selectedFolder = folderOptions.find((option) => option.id === selectedFolderId);
 
   return (
     <div className="absolute inset-0 bg-black/90 backdrop-blur-sm z-40 sm:rounded-[2rem] flex flex-col">
@@ -44,150 +98,234 @@ export function GalleryView({ state, actions }: GalleryViewProps) {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => setShowGallery(false)}
+          onClick={handleCloseGallery}
           className="text-white hover:bg-white/20 rounded-full cursor-pointer"
         >
           <X className="w-5 h-5" />
         </Button>
       </div>
 
-      {/* Gallery Body: grid + summary */}
-      <div className="flex-1 p-4 overflow-y-auto flex flex-col gap-4">
-        {/* Image grid */}
-        <div className="grid grid-cols-2 gap-4">
-          {images.map((image, index) => (
-            <div key={index} className="relative group">
-              <div className="aspect-square rounded-xl overflow-hidden border border-white/20 bg-black/60 flex items-center justify-center">
-                <img
-                  src={image.url || "/placeholder.svg"}
-                  alt={`Photo ${index + 1}`}
-                  className="max-h-full max-w-full object-contain"
-                />
-              </div>
-              <Button
-                onClick={() => deleteImage(index)}
-                className="absolute top-1 right-1 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg p-0 cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </Button>
-              <div className="absolute bottom-2 left-2 bg-black/60 text-white text-xs px-2 py-1 rounded-full">
-                {index + 1}
-              </div>
+      {!showSubfolderPicker && (
+        <>
+          {/* Gallery Body: grid + summary */}
+          <div className="flex-1 p-4 overflow-y-auto flex flex-col gap-4">
+            {/* Image grid */}
+            <div className="grid grid-cols-2 gap-4">
+              {images.map((image, index) => (
+                <div key={index} className="relative group">
+                  <div className="aspect-square rounded-xl overflow-hidden border border-white/20 bg-black/60 flex items-center justify-center">
+                    <img
+                      src={image.url || "/placeholder.svg"}
+                      alt={`Photo ${index + 1}`}
+                      className="max-h-full max-w-full object-contain"
+                    />
+                  </div>
+                  <Button
+                    onClick={() => deleteImage(index)}
+                    className="absolute top-1 right-1 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg p-0 cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                  <div className="absolute bottom-2 left-2 bg-black/60 text-white text-xs px-2 py-1 rounded-full">
+                    {index + 1}
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
 
-        {/* Summary Editor */}
-        {draftSummary && ( // Use draftSummary to check if summary exists
-          <div className="mt-2 flex flex-col gap-3 sm:flex-row">
-            <div className="flex-1 p-3 rounded-lg bg-white/5 border border-white/10">
-              <h4 className="text-xs font-semibold text-blue-200 mb-1">
-                Final Summary (Edit Draft Below)
-              </h4>
+            {/* Summary Editor */}
+            {draftSummary && ( // Use draftSummary to check if summary exists
+              <div className="mt-2 flex flex-col gap-3 sm:flex-row">
+                <div className="flex-1 p-3 rounded-lg bg-white/5 border border-white/10">
+                  <h4 className="text-xs font-semibold text-blue-200 mb-1">
+                    Final Summary (Edit Draft Below)
+                  </h4>
 
-              <textarea
-                className="mt-1 w-full min-h-[180px] rounded-md bg-black/30 border border-white/20 text-sm text-blue-100 px-3 py-2 leading-relaxed whitespace-pre-wrap focus:outline-none focus:ring-2 focus:ring-blue-400"
-                value={editableSummary}
-                onChange={(e) => setEditableSummary(e.target.value)}
-                // Removed onBlur since state is updated on every change, and final content is used at save time.
-                placeholder="Edit the AI draft summary here..."
-              />
-              <p className="mt-1 text-[11px] text-blue-300/70">
-                This summary will be saved. The original AI draft is preserved.
-              </p>
-            </div>
-            <div className="sm:w-56 p-3 rounded-lg bg-white/5 border border-white/10 flex flex-col gap-2">
-              <div className="flex items-center justify-between gap-2">
+                  <textarea
+                    className="mt-1 w-full min-h-[180px] rounded-md bg-black/30 border border-white/20 text-sm text-blue-100 px-3 py-2 leading-relaxed whitespace-pre-wrap focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    value={editableSummary}
+                    onChange={(e) => setEditableSummary(e.target.value)}
+                    // Removed onBlur since state is updated on every change, and final content is used at save time.
+                    placeholder="Edit the AI draft summary here..."
+                  />
+                  <p className="mt-1 text-[11px] text-blue-300/70">
+                    This summary will be saved. The original AI draft is preserved.
+                  </p>
+                </div>
+                <div className="sm:w-56 p-3 rounded-lg bg-white/5 border border-white/10 flex flex-col gap-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <h5 className="text-xs font-semibold text-blue-200">
+                        Issuer Canons
+                      </h5>
+                      <p className="text-[11px] text-blue-300/70">
+                        Tap a canon to seed the summary.
+                      </p>
+                    </div>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7 text-blue-100 hover:bg-white/10"
+                      onClick={refreshCanons}
+                      disabled={issuerCanonsLoading}
+                    >
+                      <Loader2
+                        className={`w-4 h-4 ${issuerCanonsLoading ? "animate-spin" : ""}`}
+                      />
+                    </Button>
+                  </div>
+                  {canonError && (
+                    <p className="text-[11px] text-red-200 bg-red-900/40 border border-red-400/40 rounded-md p-2">
+                      {canonError}
+                    </p>
+                  )}
+                  {!canonError && (
+                    <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto pr-1">
+                      {issuerCanonsLoading && issuerCanons.length === 0 && (
+                        <p className="text-[11px] text-blue-200">Loading canon list…</p>
+                      )}
+                      {!issuerCanonsLoading && issuerCanons.length === 0 && (
+                        <p className="text-[11px] text-blue-200/70">
+                          No canon entries available.
+                        </p>
+                      )}
+                      {issuerCanons.map((canon) => {
+                        const isSelected = selectedCanon?.master === canon.master;
+                        return (
+                          <button
+                            key={canon.master}
+                            onClick={() => selectCanon(canon)}
+                            className={`text-left text-[11px] px-3 py-2 rounded-full border transition-colors ${
+                              isSelected
+                                ? "bg-blue-500/30 border-blue-300 text-blue-50"
+                                : "bg-black/20 border-white/10 text-blue-50 hover:border-blue-300/70"
+                            }`}
+                            type="button"
+                          >
+                            <span className="block font-semibold leading-tight">
+                              {canon.master}
+                            </span>
+                            {canon.aliases?.length ? (
+                              <span className="block text-[10px] text-blue-100/80 leading-tight">
+                                Aliases: {canon.aliases.join(", ")}
+                              </span>
+                            ) : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {selectedCanon && (
+                    <p className="text-[11px] text-blue-200/90 border-t border-white/10 pt-1">
+                      Selected canon: <strong>{selectedCanon.master}</strong>
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Gallery Footer */}
+          <div className="p-4 border-t border-white/20">
+            <Button
+              onClick={handleNextStep}
+              disabled={images.length === 0 || isSaving || !editableSummary.trim()}
+              className="w-full bg-blue-400 hover:bg-blue-300 text-white flex items-center justify-center gap-2"
+            >
+              Next
+            </Button>
+          </div>
+        </>
+      )}
+
+      {showSubfolderPicker && (
+        <>
+          <div className="flex-1 p-4 overflow-y-auto flex flex-col gap-4">
+            <div className="rounded-lg bg-white/5 border border-white/10 p-4">
+              <div className="flex items-center justify-between gap-2 mb-2">
                 <div>
-                  <h5 className="text-xs font-semibold text-blue-200">Issuer Canons</h5>
-                  <p className="text-[11px] text-blue-300/70">
-                    Tap a canon to seed the summary.
+                  <h4 className="text-sm font-semibold text-blue-100">
+                    Choose target folder
+                  </h4>
+                  <p className="text-[11px] text-blue-200/70">
+                    Default is preselected from the tagged canon.
                   </p>
                 </div>
                 <Button
                   size="icon"
                   variant="ghost"
                   className="h-7 w-7 text-blue-100 hover:bg-white/10"
-                  onClick={refreshCanons}
-                  disabled={issuerCanonsLoading}
+                  onClick={refreshActiveSubfolders}
+                  disabled={activeSubfoldersLoading}
                 >
                   <Loader2
-                    className={`w-4 h-4 ${issuerCanonsLoading ? "animate-spin" : ""}`}
+                    className={`w-4 h-4 ${activeSubfoldersLoading ? "animate-spin" : ""}`}
                   />
                 </Button>
               </div>
-              {canonError && (
-                <p className="text-[11px] text-red-200 bg-red-900/40 border border-red-400/40 rounded-md p-2">
-                  {canonError}
+
+              <select
+                value={selectedFolderId ?? ""}
+                onChange={(e) => setSelectedFolderId(e.target.value || null)}
+                className="w-full rounded-md bg-black/40 border border-white/20 text-sm text-blue-50 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              >
+                {!selectedFolderId && (
+                  <option value="" disabled>
+                    Select a folder
+                  </option>
+                )}
+                {folderOptions.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+
+              {activeSubfolderError && (
+                <p className="mt-2 text-[11px] text-red-200 bg-red-900/40 border border-red-400/40 rounded-md p-2">
+                  {activeSubfolderError}
                 </p>
               )}
-              {!canonError && (
-                <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto pr-1">
-                  {issuerCanonsLoading && issuerCanons.length === 0 && (
-                    <p className="text-[11px] text-blue-200">Loading canon list…</p>
-                  )}
-                  {!issuerCanonsLoading && issuerCanons.length === 0 && (
-                    <p className="text-[11px] text-blue-200/70">
-                      No canon entries available.
-                    </p>
-                  )}
-                  {issuerCanons.map((canon) => {
-                    const isSelected = selectedCanon?.master === canon.master;
-                    return (
-                      <button
-                        key={canon.master}
-                        onClick={() => selectCanon(canon)}
-                        className={`text-left text-[11px] px-3 py-2 rounded-full border transition-colors ${
-                          isSelected
-                            ? "bg-blue-500/30 border-blue-300 text-blue-50"
-                            : "bg-black/20 border-white/10 text-blue-50 hover:border-blue-300/70"
-                        }`}
-                        type="button"
-                      >
-                        <span className="block font-semibold leading-tight">
-                          {canon.master}
-                        </span>
-                        {canon.aliases?.length ? (
-                          <span className="block text-[10px] text-blue-100/80 leading-tight">
-                            Aliases: {canon.aliases.join(", ")}
-                          </span>
-                        ) : null}
-                      </button>
-                    );
-                  })}
-                </div>
+              {!activeSubfolderError && activeSubfoldersLoading && (
+                <p className="mt-2 text-[11px] text-blue-200">Loading folders…</p>
               )}
-              {selectedCanon && (
-                <p className="text-[11px] text-blue-200/90 border-t border-white/10 pt-1">
-                  Selected canon: <strong>{selectedCanon.master}</strong>
+              {selectedFolder && (
+                <p className="mt-2 text-[11px] text-blue-200/90">
+                  Selected: <strong>{selectedFolder.label}</strong>
+                  {selectedFolder.description ? ` — ${selectedFolder.description}` : ""}
                 </p>
               )}
             </div>
           </div>
-        )}
-      </div>
 
-      {/* Gallery Footer */}
-      <div className="p-4 border-t border-white/20">
-        <Button
-          onClick={handleSaveImages}
-          // Check disabled state against images and the currently edited summary
-          disabled={images.length === 0 || isSaving || !editableSummary.trim()}
-          className="w-full bg-blue-400 hover:bg-blue-300 text-white flex items-center justify-center gap-2"
-        >
-          {isSaving ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Saving to Google Drive...
-            </>
-          ) : (
-            <>
-              <Save className="w-4 h-4" />
-              Save All
-            </>
-          )}
-        </Button>
-      </div>
+          <div className="p-4 border-t border-white/20 flex gap-3">
+            <Button
+              variant="outline"
+              onClick={handleBackToSummary}
+              className="flex-1 bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white"
+            >
+              Back
+            </Button>
+            <Button
+              onClick={handleSaveImages}
+              disabled={images.length === 0 || isSaving || !editableSummary.trim()}
+              className="flex-1 bg-blue-400 hover:bg-blue-300 text-white flex items-center justify-center gap-2"
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  Save All
+                </>
+              )}
+            </Button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
