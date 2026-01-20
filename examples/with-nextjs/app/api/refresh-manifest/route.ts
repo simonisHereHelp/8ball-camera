@@ -118,12 +118,16 @@ export async function POST() {
 
     for (const folder of subfolders) {
       const effectiveFolderId = folder.shortcutDetails?.targetId ?? folder.id;
+      messages.push(
+        `folder ${folder.name} id=${folder.id} effectiveId=${effectiveFolderId} mime=${folder.mimeType}`,
+      );
       messages.push(`processing folder ${folder.name}`);
       const fileQuery = [
         `'${effectiveFolderId}' in parents`,
         "trashed = false",
       ].join(" and ");
       const files = await listDriveFiles({ accessToken, query: fileQuery });
+      messages.push(`found ${files.length} files in ${folder.name}`);
       const treeIds = files.map((file) => file.id);
       const filesById = Object.fromEntries(
         files.map((file) => [file.id, { name: file.name, mime: file.mimeType }]),
@@ -132,6 +136,9 @@ export async function POST() {
         file.name.toLowerCase().match(/\.(md|mdx)$/),
       );
       const imageFiles = files.filter((file) => file.mimeType.startsWith("image/"));
+      messages.push(
+        `markdown=${markdownFiles.length} images=${imageFiles.length} for ${folder.name}`,
+      );
 
       const inlineAssets = markdownFiles.reduce<Record<string, Record<string, string>>>(
         (acc, file) => ({ ...acc, ...buildInlineAssets({ markdownId: file.id, imageFiles }) }),
@@ -151,6 +158,9 @@ export async function POST() {
         },
         replace: true,
       });
+      messages.push(
+        `manifest payload for ${folder.name} tree=${treeIds.length} files=${Object.keys(filesById).length} inlineAssets=${Object.keys(inlineAssets).length}`,
+      );
       messages.push(
         `${manifestResult.action} manifest.json for ${folder.name} (${manifestResult.id})`,
       );
