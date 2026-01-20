@@ -4,6 +4,7 @@ import { upsertDriveManifest } from "@/lib/driveManifest";
 
 const DRIVE_LIST_URL = "https://www.googleapis.com/drive/v3/files";
 const BASE_DRIVE_FOLDER_ID = process.env.DRIVE_FOLDER_ID;
+export const runtime = "nodejs";
 
 interface DriveFile {
   id: string;
