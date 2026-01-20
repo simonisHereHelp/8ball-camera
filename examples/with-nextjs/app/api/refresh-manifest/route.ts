@@ -111,7 +111,34 @@ export async function POST() {
       accessToken,
       query: targetFolderQuery,
     });
+    messages.push(
+      `target items: ${targetItems
+        .map(
+          (item) =>
+            `${item.name}[${item.mimeType}${
+              item.shortcutDetails
+                ? `->${item.shortcutDetails.targetMimeType}:${item.shortcutDetails.targetId}`
+                : ""
+            }]`,
+        )
+        .join(", ")}`,
+    );
     const subfolders = targetItems.filter(isFolderLike);
+    const skippedItems = targetItems.filter((item) => !isFolderLike(item));
+    if (skippedItems.length) {
+      messages.push(
+        `skipped items: ${skippedItems
+          .map(
+            (item) =>
+              `${item.name}[${item.mimeType}${
+                item.shortcutDetails
+                  ? `->${item.shortcutDetails.targetMimeType}:${item.shortcutDetails.targetId}`
+                  : ""
+              }]`,
+          )
+          .join(", ")}`,
+      );
+    }
     messages.push(`found ${subfolders.length} subfolder(s)`);
 
     const processedFiles: string[] = [];
