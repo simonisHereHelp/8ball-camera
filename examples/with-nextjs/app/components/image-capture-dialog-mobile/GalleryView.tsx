@@ -48,7 +48,11 @@ export function GalleryView({ state, actions }: GalleryViewProps) {
     setShowGallery(false);
   };
 
-  const baseFolderOptions = [
+  const baseFolderOptions: Array<{
+    id: string;
+    label: string;
+    description?: string;
+  }> = [
     ...(fallbackFolderId
       ? [{ id: fallbackFolderId, label: "Default folder" }]
       : []),
@@ -63,7 +67,11 @@ export function GalleryView({ state, actions }: GalleryViewProps) {
     selectedFolderId &&
     !baseFolderOptions.some((option) => option.id === selectedFolderId);
 
-  const folderOptions = [
+  const folderOptions: Array<{
+    id: string;
+    label: string;
+    description?: string;
+  }> = [
     ...(needsCanonDefault
       ? [
           {
