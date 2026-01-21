@@ -3,8 +3,8 @@
 import { useRef, useState, useCallback, useEffect } from "react";
 import type { WebCameraHandler, FacingMode } from "@shivantra/react-web-camera";
 import { useSession } from "next-auth/react";
-import { handleSave } from "@/lib/handleSave"; // Assuming path is correct
-import { handleSummary } from "@/lib/handleSummary"; // Assuming path is correct
+import { handleSave } from "@/lib/handleSave";
+import { handleSummary } from "@/lib/handleSummary";
 import { normalizeFilename } from "@/lib/normalizeFilename";
 import {
   CaptureError,
@@ -29,42 +29,40 @@ export const useImageCaptureState = (
   onOpenChange?: (open: boolean) => void,
   initialSource: "camera" | "photos" = "camera",
 ): UseImageCaptureState => {
+  // --- Core State ---
   const [images, setImages] = useState<Image[]>([]);
   const [facingMode, setFacingMode] = useState<FacingMode>("environment");
   const [isSaving, setIsSaving] = useState(false);
   const [isProcessingCapture, setIsProcessingCapture] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
   const [cameraError, setCameraError] = useState(false);
-  const [captureSource, setCaptureSource] = useState<"camera" | "photos">(
-    initialSource,
-  );
-  
-  // RENAMED: summary -> draftSummary
-  const [draftSummary, setDraftSummary] = useState("");
-  const [editableSummary, setEditableSummary] = useState("");
-  
+  const [captureSource, setCaptureSource] = useState<"camera" | "photos">(initialSource);
+
+  // --- Summary & AI State ---
+  const [draftSummary, setDraftSummary] = useState(""); // Original AI output
+  const [editableSummary, setEditableSummary] = useState(""); // User's working text
   const [summaryImageUrl, setSummaryImageUrl] = useState<string | null>(null);
+  const [showSummaryOverlay, setShowSummaryOverlay] = useState(false);
+
+  // --- UI Feedback State ---
   const [error, setError] = useState("");
   const [saveMessage, setSaveMessage] = useState("");
-  const [showSummaryOverlay, setShowSummaryOverlay] = useState(false);
+
+  // --- Canon / Metadata State ---
   const [issuerCanons, setIssuerCanons] = useState<IssuerCanonEntry[]>([]);
   const [issuerCanonsLoading, setIssuerCanonsLoading] = useState(false);
   const [canonError, setCanonError] = useState("");
-  const [selectedCanon, setSelectedCanon] = useState<IssuerCanonEntry | null>(
-    null,
-  );
+  const [selectedCanon, setSelectedCanon] = useState<IssuerCanonEntry | null>(null);
 
   const cameraRef = useRef<WebCameraHandler>(null);
   const { data: session } = useSession();
 
+  // Keep capture source in sync with props
   useEffect(() => {
     setCaptureSource(initialSource);
   }, [initialSource]);
 
-  // --- Callbacks and Handlers ---
-
-  // REMOVED: The previous useEffect is replaced by initialization logic in handleSummarize
-  // to avoid overwriting user edits after the first draft is created.
+  // --- Handlers ---
 
   const deleteImage = useCallback((index: number) => {
     setImages((prev) => prev.filter((_, i) => i !== index));
@@ -72,18 +70,14 @@ export const useImageCaptureState = (
 
   const handleClose = useCallback(() => {
     if (images.length > 0 && !isSaving) {
-      if (
-        !window.confirm(
-          "You have unsaved images. Are you sure you want to close?",
-        )
-      ) {
+      if (!window.confirm("You have unsaved images. Are you sure you want to close?")) {
         return;
       }
     }
-    // Reset all state when closing
+    // Reset all state
     setImages([]);
-    setDraftSummary(""); // Updated
-    setEditableSummary(""); // Reset editableSummary on close
+    setDraftSummary("");
+    setEditableSummary("");
     setSummaryImageUrl(null);
     setError("");
     setSaveMessage("");
@@ -100,32 +94,22 @@ export const useImageCaptureState = (
   const ingestFile = useCallback(
     async (file: File, source: "camera" | "photos", preferredName?: string) => {
       setIsProcessingCapture(true);
+      setError("");
       try {
-        const { file: normalizedFile, previewUrl } = await normalizeCapture(
-          file,
-          source,
-          {
-            maxFileSize: DEFAULTS.MAX_FILE_SIZE,
-            preferredName,
-          },
-        );
+        const { file: normalizedFile, previewUrl } = await normalizeCapture(file, source, {
+          maxFileSize: DEFAULTS.MAX_FILE_SIZE,
+          preferredName,
+        });
 
-        // Clear previous state after a new capture
+        // Reset summary context for the new set of images
         setSummaryImageUrl(null);
         setDraftSummary("");
         setEditableSummary("");
-        setError("");
         setSaveMessage("");
         setShowGallery(false);
-        setShowSummaryOverlay(false);
         setImages((prev) => [...prev, { url: previewUrl, file: normalizedFile }]);
       } catch (err) {
-        console.error("Capture error:", err);
-        if (err instanceof CaptureError) {
-          setError(err.message);
-        } else {
-          setError("Unable to process the image. Please try again.");
-        }
+        setError(err instanceof CaptureError ? err.message : "Unable to process the image.");
       } finally {
         setIsProcessingCapture(false);
       }
@@ -137,70 +121,42 @@ export const useImageCaptureState = (
     if (!cameraRef.current) return;
     try {
       const file = await cameraRef.current.capture();
-      if (file) {
-        await ingestFile(file, "camera", `capture-${Date.now()}.jpeg`);
-      }
+      if (file) await ingestFile(file, "camera", `capture-${Date.now()}.jpeg`);
     } catch (err) {
-      console.error("Capture error:", err);
       setError("Unable to access camera capture.");
     }
-  }, [ingestFile, setError]);
+  }, [ingestFile]);
 
-  const handleAlbumSelect = useCallback(
-    async (files: FileList | null) => {
-      if (!files || files.length === 0) {
-        setError("No photo selected.");
-        return;
-      }
-
-      const file = files[0];
-      await ingestFile(file, "photos");
-    },
-    [ingestFile],
-  );
+  const handleAlbumSelect = useCallback(async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    await ingestFile(files[0], "photos");
+  }, [ingestFile]);
 
   const handleCameraSwitch = useCallback(async () => {
     if (!cameraRef.current) return;
-    try {
-      const newMode = facingMode === "user" ? "environment" : "user";
-      await cameraRef.current.switch(newMode);
-      setFacingMode(newMode);
-    } catch (err) {
-      console.error("Camera switch error:", err);
-    }
+    const newMode = facingMode === "user" ? "environment" : "user";
+    await cameraRef.current.switch(newMode);
+    setFacingMode(newMode);
   }, [facingMode]);
-
-  const handleSourceChange = useCallback(
-    (source: "camera" | "photos") => {
-      setCaptureSource(source);
-      setShowGallery(false);
-      setError("");
-      setSaveMessage("");
-      setCameraError(false);
-    },
-    [],
-  );
 
   const handleSummarize = useCallback(async () => {
     setSaveMessage("");
     setError("");
     
-    // Custom setter to set both draftSummary (LLM output) and editableSummary (user view)
     const setSummaries = (newSummary: string) => {
       setDraftSummary(newSummary);
-      setEditableSummary(newSummary); // Initializes editableSummary = draftSummary
-    }
+      setEditableSummary(newSummary); 
+    };
     
-    // Pass the custom setter to the external utility
     const didSummarize = await handleSummary({
       images,
       setIsSaving,
-      setSummary: setSummaries, // Utility calls this to set the summary content
+      setSummary: setSummaries,
       setSummaryImageUrl,
       setShowSummaryOverlay,
       setError,
     });
-    // After summarize finishes, go straight to gallery if successful
+
     if (didSummarize && images.length > 0) {
       setShowGallery(true);
       playSuccessChime();
@@ -215,31 +171,24 @@ export const useImageCaptureState = (
       const entries = await fetchIssuerCanonList();
       setIssuerCanons(entries);
     } catch (err) {
-      console.error("fetchIssuerCanonList failed:", err);
-      setCanonError(
-        err instanceof Error
-          ? err.message
-          : "Unable to load issuer canon entries.",
-      );
+      setCanonError(err instanceof Error ? err.message : "Unable to load canon list.");
     } finally {
       setIssuerCanonsLoading(false);
     }
   }, [issuerCanonsLoading]);
 
-  const selectCanon = useCallback(
-    (canon: IssuerCanonEntry) => {
-      setSelectedCanon(canon);
-      setEditableSummary((current) =>
-        applyCanonToSummary({
-          canon,
-          currentSummary: current,
-          draftSummary,
-        }),
-      );
-    },
-    [draftSummary],
-  );
+  const selectCanon = useCallback((canon: IssuerCanonEntry) => {
+    setSelectedCanon(canon);
+    setEditableSummary((current) =>
+      applyCanonToSummary({
+        canon,
+        currentSummary: current,
+        draftSummary,
+      }),
+    );
+  }, [draftSummary]);
 
+  // Auto-refresh canons when gallery opens
   useEffect(() => {
     if (showGallery && !issuerCanons.length && !issuerCanonsLoading) {
       refreshCanons();
@@ -247,43 +196,41 @@ export const useImageCaptureState = (
   }, [showGallery, issuerCanons.length, issuerCanonsLoading, refreshCanons]);
 
   const handleSaveImages = useCallback(async () => {
-    if (!session) return;
-    setSaveMessage("");
+    if (!session || isSaving) return;
     
     const finalSummary = editableSummary.trim();
-    
-    if (!finalSummary) { // Check against the editableSummary, which is the final content
-      setError("Please summarize before saving.");
+    if (!finalSummary) {
+      setError("Please ensure the summary is not empty before saving.");
       return;
     }
+
+    setSaveMessage("");
     setError("");
 
-    // NEW PARAMS: Pass both draftSummary and editableSummary
     await handleSave({
       images,
-      draftSummary, // Original AI draft
-      finalSummary, // Edited and final content
+      draftSummary,
+      finalSummary,
       selectedCanon,
       setIsSaving,
       onError: setError,
-      onSuccess: ({ setName: savedSetName, targetFolderId, topic }) => {
-        setShowGallery(false); // Close gallery after success
-        const lastSegment = targetFolderId?.split("/").pop() ?? "";
-        const folderPath = topic || lastSegment || "Drive_unknown";
+      onSuccess: ({ setName, targetFolderId, topic }) => {
+        setShowGallery(false);
+        const folderPath = topic || targetFolderId?.split("/").pop() || "Drive";
         const displayPath = folderPath.replace(/^Drive_/, "");
-        const resolvedName = normalizeFilename(savedSetName || "(untitled)");
-        setSaveMessage(
-          `uploaded to path: ${displayPath} ✅\nname: ${resolvedName} ✅`,
-        );
-        setImages([]); // Clear images after save
+        const resolvedName = normalizeFilename(setName || "(untitled)");
+        
+        setSaveMessage(`uploaded to: ${displayPath} ✅\nname: ${resolvedName} ✅`);
+        setImages([]);
         setDraftSummary("");
         setEditableSummary("");
         setSelectedCanon(null);
         playSuccessChime();
       },
     });
-  // Added draftSummary and editableSummary to dependencies
-  }, [session, images, draftSummary, editableSummary, selectedCanon]);
+  }, [session, isSaving, images, draftSummary, editableSummary, selectedCanon]);
+
+  // --- Aggregate State & Actions ---
 
   const state: State = {
     images,
@@ -293,7 +240,7 @@ export const useImageCaptureState = (
     showGallery,
     cameraError,
     captureSource,
-    draftSummary, // Updated
+    draftSummary,
     editableSummary,
     summaryImageUrl,
     error,
@@ -313,9 +260,9 @@ export const useImageCaptureState = (
     handleSummarize,
     handleSaveImages,
     handleClose,
-    setCaptureSource: handleSourceChange,
+    setCaptureSource,
     setEditableSummary,
-    setDraftSummary, // Updated
+    setDraftSummary,
     setShowGallery,
     setCameraError,
     setError,

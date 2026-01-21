@@ -1,7 +1,5 @@
-// app/components/image-capture-dialog-mobile/types.ts
-
 import type { FacingMode } from "@shivantra/react-web-camera";
-import type { IssuerCanonEntry } from "@/types/issuerCanon";
+import type { IssuerCanonEntry } from "./issuerCanonUtils";
 
 export interface Image {
   url: string;
@@ -16,13 +14,11 @@ export interface State {
   showGallery: boolean;
   cameraError: boolean;
   captureSource: "camera" | "photos";
-  // RENAMED: summary -> draftSummary
-  draftSummary: string;
-  editableSummary: string;
+  draftSummary: string;     // The original AI output
+  editableSummary: string;  // What the user sees and edits
   summaryImageUrl: string | null;
   error: string;
   saveMessage: string;
-  showSummaryOverlay: boolean;
   issuerCanons: IssuerCanonEntry[];
   issuerCanonsLoading: boolean;
   canonError: string;
@@ -39,12 +35,9 @@ export interface Actions {
   handleClose: () => void;
   setCaptureSource: (source: "camera" | "photos") => void;
   setEditableSummary: (summary: string) => void;
-  // RENAMED: setSummary -> setDraftSummary
-  setDraftSummary: (summary: string) => void;
   setShowGallery: (show: boolean) => void;
   setCameraError: (error: boolean) => void;
   setError: (message: string) => void;
-  setCanonError: (value: string) => void;
   refreshCanons: () => Promise<void>;
   selectCanon: (canon: IssuerCanonEntry) => void;
 }
