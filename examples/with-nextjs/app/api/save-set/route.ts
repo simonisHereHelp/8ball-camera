@@ -2,12 +2,13 @@
 import { NextResponse } from "next/server";
 import { Buffer } from "buffer";
 import { driveSaveFiles } from "@/lib/driveSaveFiles";
+import { upsertDriveManifest } from "@/lib/driveManifest";
 import { GPT_Router } from "@/lib/gptRouter";
 import {
   DRIVE_FALLBACK_FOLDER_ID,
   PROMPT_SET_NAME_SOURCE,
 } from "@/lib/jsonCanonSources";
-import { resolveDriveFolder } from "@/lib/driveSubfolderResolver";
+import { buildFolderPath, resolveDriveFolder } from "@/lib/driveSubfolderResolver";
 import { normalizeFilename } from "@/lib/normalizeFilename";
 
 interface SelectedCanonMeta {
@@ -15,16 +16,9 @@ interface SelectedCanonMeta {
   aliases?: string[];
 }
 
-function buildMarkdown(params: {
-  setName: string;
-  summary: string;
-  pageCount: number;
-}) {
-  const { setName, summary, pageCount } = params;
-  const images = Array.from({ length: Math.max(pageCount, 0) }).map((_, idx) => {
-    const pageNumber = idx + 1;
-    return `![${setName}-p${pageNumber}](./${setName}-p${pageNumber}.jpeg)`;
-  });
+function buildMarkdown(params: { setName: string; summary: string; imageNames: string[] }) {
+  const { setName, summary, imageNames } = params;
+  const images = imageNames.map((name) => `![${name}](./${name})`);
 
   return `# ${setName}
 
@@ -110,6 +104,9 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const summary = (formData.get("summary") as string | null)?.trim() ?? "";
     const selectedCanonRaw = formData.get("selectedCanon");
+    const targetFolderIdRaw = (formData.get("targetFolderId") as string | null)
+      ?.trim()
+      .replace(/\s+/g, "");
     let selectedCanon: SelectedCanonMeta | null = null;
     if (typeof selectedCanonRaw === "string") {
       try {
@@ -130,38 +127,102 @@ export async function POST(request: Request) {
     const normalizedSetName = normalizeFilename(setName);
 
     // 儲存檔案到 Google Drive (auto-route into active subfolders)
-    const { folderId: targetFolderId, topic } = await resolveDriveFolder(summary);
+    const { folderId: resolvedFolderId, topic } = await resolveDriveFolder(summary);
+    const targetFolderId = targetFolderIdRaw
+      ? buildFolderPath(targetFolderIdRaw, BASE_DRIVE_FOLDER_ID)
+      : resolvedFolderId;
 
     const imageFiles = files;
+    const baseName = normalizeFilename(
+      normalizedSetName.replace(/[\\/:*?"<>|]/g, "_"),
+    );
+    const getSummaryFileName = () => normalizeFilename(`${baseName}.mdx`);
+    const getImageExtension = (file: File) => {
+      const mimeType = file.type?.toLowerCase() ?? "";
+      if (mimeType.startsWith("image/")) {
+        const subtype = mimeType.split("/")[1] ?? "";
+        if (subtype) {
+          return subtype;
+        }
+      }
+
+      return file.name.split(".").pop() ?? "dat";
+    };
+
+    const getImageFileName = (file: File, index: number) => {
+      if (index < 0) {
+        throw new Error("Image file index not found.");
+      }
+      const extension = getImageExtension(file);
+      return normalizeFilename(`${baseName}-p${index + 1}.${extension ?? "dat"}`);
+    };
+    const imageNames = imageFiles.map((file, index) => getImageFileName(file, index));
+
     const markdown = buildMarkdown({
       setName: normalizedSetName,
       summary,
-      pageCount: imageFiles.length,
+      imageNames,
     });
 
-    const summaryFile = new File([markdown], "summary.md", { type: "text/markdown" });
+    const summaryFile = new File([markdown], "summary.mdx", { type: "text/markdown" });
     const uploadFiles = [...imageFiles, summaryFile];
 
-    await driveSaveFiles({
+    const uploadResult = await driveSaveFiles({
       folderId: targetFolderId,
       files: uploadFiles,
       fileToUpload: async (file) => {
-        const baseName = normalizeFilename(
-          normalizedSetName.replace(/[\\/:*?"<>|]/g, "_"),
-        );
-        const extension = file.name.split(".").pop();
-
-        const fileName = normalizeFilename(
-          file === summaryFile || file.name === "summary.md"
-            ? `${baseName}.md`
-            : `${baseName}-p${imageFiles.indexOf(file) + 1}.${extension ?? "dat"}`,
-        );
+        const fileName =
+          file === summaryFile || file.name === "summary.mdx"
+            ? getSummaryFileName()
+            : getImageFileName(file, imageFiles.indexOf(file));
 
         return {
           name: fileName,
           buffer: Buffer.from(await file.arrayBuffer()),
           mimeType: file.type,
         };
+      },
+    });
+
+    const fileIdByName = new Map(
+      uploadResult.files.map((file) => [file.name, file.id]),
+    );
+    const summaryId = fileIdByName.get(getSummaryFileName()) ?? null;
+    const imageIds = imageNames
+      .map((name) => fileIdByName.get(name))
+      .filter((id): id is string => Boolean(id));
+    const folderKey = topic ?? "Docs";
+    const filesById = Object.fromEntries(
+      uploadResult.files.map((file) => [
+        file.id,
+        {
+          name: file.name,
+          mime: file.mimeType,
+        },
+      ]),
+    );
+    const inlineAssetEntries = imageNames.reduce<[string, string][]>((acc, name) => {
+      const id = fileIdByName.get(name);
+      if (!id) return acc;
+      acc.push([`./${name}`, id]);
+      return acc;
+    }, []);
+    const inlineAssets = summaryId
+      ? {
+          [summaryId]: Object.fromEntries(inlineAssetEntries),
+        }
+      : {};
+
+    await upsertDriveManifest({
+      folderId: uploadResult.folderId,
+      manifest: {
+        folders: { [folderKey]: uploadResult.folderId },
+        tree: {
+          [folderKey]: [summaryId, ...imageIds].filter((id): id is string => Boolean(id)),
+        },
+        files: filesById,
+        inlineAssets,
+        updatedAt: Date.now(),
       },
     });
 
