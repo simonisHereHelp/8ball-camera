@@ -10,41 +10,41 @@ export interface Image {
 
 export interface State {
   images: Image[];
+  captureSource: "camera" | "album";
   facingMode: FacingMode;
   isSaving: boolean;
   isProcessingCapture: boolean;
   showGallery: boolean;
   cameraError: boolean;
-  captureSource: "camera" | "photos";
-  // RENAMED: summary -> draftSummary
   draftSummary: string;
   editableSummary: string;
   summaryImageUrl: string | null;
-  error: string;
-  saveMessage: string;
+  error: string | null;
+  saveMessage: string | null;
   showSummaryOverlay: boolean;
   issuerCanons: IssuerCanonEntry[];
   issuerCanonsLoading: boolean;
-  canonError: string;
   selectedCanon: IssuerCanonEntry | null;
+  canonError: string | null;
 }
 
 export interface Actions {
-  deleteImage: (index: number) => void;
   handleCapture: () => Promise<void>;
-  handleCameraSwitch: () => Promise<void>;
   handleAlbumSelect: (files: FileList | null) => Promise<void>;
+  handleCameraSwitch: () => Promise<void>;
   handleSummarize: () => Promise<void>;
   handleSaveImages: () => Promise<void>;
   handleClose: () => void;
-  setCaptureSource: (source: "camera" | "photos") => void;
-  setEditableSummary: (summary: string) => void;
-  // RENAMED: setSummary -> setDraftSummary
-  setDraftSummary: (summary: string) => void;
   setShowGallery: (show: boolean) => void;
   setCameraError: (error: boolean) => void;
-  setError: (message: string) => void;
-  setCanonError: (value: string) => void;
-  refreshCanons: () => Promise<void>;
+  setError: (msg: string | null) => void;
+  setEditableSummary: (val: string) => void;
+  deleteImage: (index: number) => void;
   selectCanon: (canon: IssuerCanonEntry) => void;
+  refreshCanons: () => Promise<void>;
+  setCaptureSource: (source: "camera" | "album") => void;
+  setDraftSummary: (summary: string) => void;
+  setCanonError: (value: string | null) => void;
+  setCaptureHandler: (handler: (() => Promise<File | null>) | null) => void;
+  setSwitchHandler: (handler: ((mode: FacingMode) => Promise<void>) | null) => void;
 }

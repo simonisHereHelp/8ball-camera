@@ -1,4 +1,4 @@
-export type CaptureSource = "camera" | "photos";
+export type CaptureSource = "camera" | "album";
 
 export interface NormalizedCapture {
   file: File;

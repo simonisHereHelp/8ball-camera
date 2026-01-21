@@ -27,7 +27,7 @@ test("rejects unsupported mime types", async () => {
     type: "text/plain",
   });
 
-  await assert.rejects(() => normalizeCapture(textFile, "photos"), CaptureError);
+  await assert.rejects(() => normalizeCapture(textFile, "album"), CaptureError);
 });
 
 test("applies size limits", async () => {
@@ -35,7 +35,7 @@ test("applies size limits", async () => {
 
   await assert.rejects(
     () =>
-      normalizeCapture(heavy, "photos", {
+      normalizeCapture(heavy, "album", {
         maxFileSize: 1,
       }),
     CaptureError,
