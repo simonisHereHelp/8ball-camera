@@ -116,11 +116,18 @@ function Content() {
                     <span className="app-button-label">Photo Album</span>
                   </Button>
                 </div>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
-                  {isMobile
-                    ? "Mobile-optimized interface"
-                    : "Desktop-enhanced experience"}
-                </p>
+                {uploadConfirmation ? (
+                  <div className="text-sm text-slate-500 dark:text-slate-400 space-y-1">
+                    <p>upload to {uploadConfirmation.folder}</p>
+                    <p>filename: {uploadConfirmation.filename}</p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                    {isMobile
+                      ? "Mobile-optimized interface"
+                      : "Desktop-enhanced experience"}
+                  </p>
+                )}
               </div>
             </div>
           </div>
