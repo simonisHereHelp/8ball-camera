@@ -1,3 +1,8 @@
+# stable build: image and mdx to targetFolderId, yet to fix:
+- subfolder selector
+- asset path normalized
+- revert to same path, (have tried manifest but now give up)
+
 # Prompt & Canon Sources (Next.js 14 uploader)
 
 This project reads JSON configs from the `json_canon/` folder by default (overridable via env paths/IDs). They drive summarization, file naming, canonical updates, and now subfolder routing for saves.
