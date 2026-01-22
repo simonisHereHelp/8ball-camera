@@ -31,7 +31,7 @@ export function ImageCaptureDialogDesktop({
   const [facingMode, setFacingMode] = useState<FacingMode>("environment");
   const [cameraError, setCameraError] = useState(false);
 
-  const cameraRef = useRef<WebCameraHandler>(null);
+  const cameraRef = useRef<WebCameraHandler | null>(null);
 
   /**
    * Removes an image from the gallery based on its index.

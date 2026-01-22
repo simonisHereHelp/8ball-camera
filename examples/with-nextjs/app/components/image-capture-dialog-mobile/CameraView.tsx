@@ -41,8 +41,9 @@ export function CameraView({ state, actions, cameraRef }: CameraViewProps) {
               </div>
             )}
             <div className="absolute bottom-6 w-full px-8 flex flex-col gap-2">
-              <Button onClick={() => document.getElementById("photo-picker")?.click()} className="bg-white text-black">
-                {state.isProcessingCapture ? <Loader2 className="animate-spin mr-2" /> : "Choose Photo"}
+              <Button onClick={() => document.getElementById("photo-picker")?.click()} className="app-button">
+                {state.isProcessingCapture && <Loader2 className="animate-spin mr-2" />}
+                <span className="app-button-label">Choose Photo</span>
               </Button>
             </div>
           </div>
@@ -51,15 +52,18 @@ export function CameraView({ state, actions, cameraRef }: CameraViewProps) {
         {/* Floating Capture UI */}
         {isCamera && (
           <div className="absolute bottom-8 w-full px-8 flex items-center justify-between z-20">
-             <button onClick={() => actions.setShowGallery(true)} className="w-16 h-16 rounded-xl border-2 border-white/30 overflow-hidden bg-black/50">
+             <button
+               onClick={() => actions.setShowGallery(true)}
+               className="app-button w-16 h-16 rounded-xl border-2 border-white/30 overflow-hidden"
+             >
                 {latestImage ? <img src={latestImage.url} className="w-full h-full object-cover" /> : <div className="w-full h-full" />}
              </button>
              
-             <Button onClick={actions.handleCapture} disabled={state.isSaving || state.cameraError} className="w-20 h-20 rounded-full bg-white text-black border-4 border-white/50">
+             <Button onClick={actions.handleCapture} disabled={state.isSaving || state.cameraError} className="app-button w-20 h-20 rounded-full border-4 border-white/50">
                <Camera className="w-8 h-8" />
              </Button>
 
-             <Button variant="outline" onClick={actions.handleCameraSwitch} className="w-16 h-16 rounded-full bg-white/20 text-white">
+             <Button onClick={actions.handleCameraSwitch} className="app-button w-16 h-16 rounded-full">
                <RefreshCcw className={`transition-transform ${state.facingMode === 'user' ? 'rotate-180' : ''}`} />
              </Button>
           </div>
@@ -68,11 +72,16 @@ export function CameraView({ state, actions, cameraRef }: CameraViewProps) {
 
       {/* Footer Actions */}
       <div className="p-4 bg-black/80 flex gap-2">
-        <Button variant="outline" onClick={actions.handleClose} className="flex-1 text-white border-white/20">
-          <X className="mr-2 h-4 w-4" /> Cancel
+        <Button onClick={actions.handleClose} className="app-button flex-1">
+          <X className="mr-2 h-4 w-4" /> <span className="app-button-label">Cancel</span>
         </Button>
-        <Button onClick={actions.handleSummarize} disabled={state.images.length === 0} className="flex-1 bg-blue-500">
-          {state.isSaving ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2 h-4 w-4" />} Summarize
+        <Button onClick={actions.handleSummarize} disabled={state.images.length === 0} className="app-button flex-1">
+          {state.isSaving ? (
+            <Loader2 className="animate-spin mr-2" />
+          ) : (
+            <Save className="mr-2 h-4 w-4" />
+          )}{" "}
+          <span className="app-button-label">Summarize</span>
         </Button>
       </div>
 

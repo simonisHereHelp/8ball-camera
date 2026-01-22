@@ -7,7 +7,12 @@ export function GalleryView({ state, actions }: { state: State; actions: Actions
     <div className="absolute inset-0 bg-black/95 z-40 flex flex-col">
       <div className="flex justify-between p-4 border-b border-white/10">
         <h3 className="text-white font-bold">{state.images.length} Photos</h3>
-        <button onClick={() => actions.setShowGallery(false)} className="text-white"><X /></button>
+        <button
+          onClick={() => actions.setShowGallery(false)}
+          className="app-button h-8 w-8 rounded-full flex items-center justify-center"
+        >
+          <X />
+        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
@@ -16,7 +21,12 @@ export function GalleryView({ state, actions }: { state: State; actions: Actions
           {state.images.map((img, i) => (
             <div key={i} className="relative aspect-square bg-white/5 rounded-lg overflow-hidden">
               <img src={img.url} className="object-contain w-full h-full" />
-              <button onClick={() => actions.deleteImage(i)} className="absolute top-1 right-1 bg-red-500 rounded-full p-1"><X size={12}/></button>
+              <button
+                onClick={() => actions.deleteImage(i)}
+                className="app-button absolute top-1 right-1 h-6 w-6 rounded-full flex items-center justify-center"
+              >
+                <X size={12} />
+              </button>
             </div>
           ))}
         </div>
@@ -37,7 +47,15 @@ export function GalleryView({ state, actions }: { state: State; actions: Actions
             <div className="p-3 bg-white/5 rounded-lg border border-white/10">
               <div className="flex justify-between items-center mb-2">
                 <span className="text-xs font-bold text-blue-300">ISSUER CANONS</span>
-                <button onClick={actions.refreshCanons} className="text-white/50"><RefreshCw size={14} className={state.issuerCanonsLoading ? "animate-spin" : ""}/></button>
+                <button
+                  onClick={actions.refreshCanons}
+                  className="app-button h-6 w-6 rounded-full flex items-center justify-center"
+                >
+                  <RefreshCw
+                    size={14}
+                    className={state.issuerCanonsLoading ? "animate-spin" : ""}
+                  />
+                </button>
               </div>
               <div className="flex flex-wrap gap-2">
                 {state.issuerCanons.map(canon => (
@@ -53,13 +71,53 @@ export function GalleryView({ state, actions }: { state: State; actions: Actions
                 ))}
               </div>
             </div>
+
+            {/* Target Subfolder Selection */}
+            <div className="p-3 bg-white/5 rounded-lg border border-white/10">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-xs font-bold text-blue-300">TARGET SUBFOLDER</span>
+                <button
+                  onClick={actions.refreshSubfolders}
+                  className="app-button h-6 w-6 rounded-full flex items-center justify-center"
+                >
+                  <RefreshCw size={14} className={state.subfolderLoading ? "animate-spin" : ""} />
+                </button>
+              </div>
+              {state.subfolderError && (
+                <p className="text-[10px] text-red-300 mb-2">{state.subfolderError}</p>
+              )}
+              <div className="flex flex-wrap gap-2">
+                {state.availableSubfolders.length === 0 && !state.subfolderLoading ? (
+                  <span className="text-[10px] text-white/60">No subfolders configured.</span>
+                ) : (
+                  state.availableSubfolders.map((subfolder) => (
+                    <button
+                      key={subfolder.topic}
+                      onClick={() => actions.selectSubfolder(subfolder)}
+                      className={`text-[10px] px-3 py-1 rounded-full border transition ${
+                        state.selectedSubfolder?.topic === subfolder.topic
+                          ? "bg-blue-600 border-blue-400"
+                          : "border-white/20 text-white/70"
+                      }`}
+                    >
+                      {subfolder.topic}
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
           </div>
         )}
       </div>
 
       <div className="p-4 border-t border-white/10">
-        <Button onClick={actions.handleSaveImages} disabled={state.isSaving || !state.editableSummary.trim()} className="w-full bg-blue-500 h-12">
-          {state.isSaving ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2" />} Save to Drive
+        <Button onClick={actions.handleSaveImages} disabled={state.isSaving || !state.editableSummary.trim()} className="app-button w-full h-12">
+          {state.isSaving ? (
+            <Loader2 className="animate-spin mr-2" />
+          ) : (
+            <Save className="mr-2" />
+          )}{" "}
+          <span className="app-button-label">Save to Drive</span>
         </Button>
       </div>
     </div>

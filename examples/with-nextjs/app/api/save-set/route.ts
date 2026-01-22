@@ -15,6 +15,18 @@ interface SelectedCanonMeta {
   aliases?: string[];
 }
 
+interface SelectedSubfolderMeta {
+  topic: string;
+  folderId?: string;
+}
+
+const buildFolderPath = (slugOrPath: string, base: string) => {
+  if (!slugOrPath) return base;
+  if (slugOrPath.startsWith(`${base}/`) || slugOrPath === base) return slugOrPath;
+  if (slugOrPath.includes("/")) return slugOrPath;
+  return `${base}/${slugOrPath}`;
+};
+
 function buildMarkdown(params: {
   setName: string;
   summary: string;
@@ -45,6 +57,7 @@ export const runtime = "nodejs";
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const PROMPT_ID = PROMPT_SET_NAME_SOURCE;
 const BASE_DRIVE_FOLDER_ID = DRIVE_FALLBACK_FOLDER_ID;
+const ROOT_DRIVE_FOLDER_ID = process.env.DRIVE_FOLDER_ID;
 /**
  * 根據摘要產生檔案名稱標籤
  */
@@ -102,7 +115,7 @@ async function deriveSetNameFromSummary(summary: string): Promise<string> {
 }
 
 export async function POST(request: Request) {
-  if (!BASE_DRIVE_FOLDER_ID) {
+  if (!ROOT_DRIVE_FOLDER_ID && !BASE_DRIVE_FOLDER_ID) {
     return NextResponse.json({ error: "Missing DRIVE_FOLDER_ID" }, { status: 500 });
   }
 
@@ -110,12 +123,22 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const summary = (formData.get("summary") as string | null)?.trim() ?? "";
     const selectedCanonRaw = formData.get("selectedCanon");
+    const selectedSubfolderRaw = formData.get("selectedSubfolder");
     let selectedCanon: SelectedCanonMeta | null = null;
+    let selectedSubfolder: SelectedSubfolderMeta | null = null;
     if (typeof selectedCanonRaw === "string") {
       try {
         selectedCanon = (JSON.parse(selectedCanonRaw) as SelectedCanonMeta) ?? null;
       } catch (err) {
         console.warn("Unable to parse selectedCanon from request:", err);
+      }
+    }
+    if (typeof selectedSubfolderRaw === "string") {
+      try {
+        selectedSubfolder =
+          (JSON.parse(selectedSubfolderRaw) as SelectedSubfolderMeta) ?? null;
+      } catch (err) {
+        console.warn("Unable to parse selectedSubfolder from request:", err);
       }
     }
 
@@ -129,8 +152,26 @@ export async function POST(request: Request) {
     const setName = await deriveSetNameFromSummary(summary);
     const normalizedSetName = normalizeFilename(setName);
 
-    // 儲存檔案到 Google Drive (auto-route into active subfolders)
-    const { folderId: targetFolderId, topic } = await resolveDriveFolder(summary);
+    const baseFolderId = ROOT_DRIVE_FOLDER_ID || BASE_DRIVE_FOLDER_ID;
+    if (!baseFolderId) {
+      return NextResponse.json({ error: "Missing DRIVE_FOLDER_ID" }, { status: 500 });
+    }
+
+    let targetFolderId: string;
+    let topic: string | null = null;
+
+    if (selectedSubfolder) {
+      targetFolderId = buildFolderPath(
+        selectedSubfolder.folderId || selectedSubfolder.topic,
+        baseFolderId,
+      );
+      topic = selectedSubfolder.topic;
+    } else {
+      // 儲存檔案到 Google Drive (auto-route into active subfolders)
+      const resolved = await resolveDriveFolder(summary);
+      targetFolderId = resolved.folderId;
+      topic = resolved.topic;
+    }
 
     const imageFiles = files;
     const markdown = buildMarkdown({

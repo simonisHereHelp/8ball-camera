@@ -121,3 +121,12 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  .app-button {
+    @apply bg-blue-600 text-white hover:bg-blue-700 border border-blue-500 transition-colors;
+  }
+  .app-button-label {
+    @apply text-sm font-semibold tracking-wide;
+  }
+}
