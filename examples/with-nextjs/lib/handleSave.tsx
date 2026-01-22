@@ -12,6 +12,11 @@ export interface SelectedCanonMeta {
   aliases?: string[];
 }
 
+export interface SelectedSubfolderMeta {
+  topic: string;
+  folderId?: string;
+}
+
 /**
  * Saves the current images + summary via /api/save-set.
  * The server (via ChatGPT) is responsible for deriving setName.
@@ -21,6 +26,7 @@ export const handleSave = async ({
   draftSummary, // ✅ 原始 LLM 輸出
   finalSummary, // ✅ 用戶編輯後的最終摘要
   selectedCanon,
+  selectedSubfolder,
   setIsSaving,
   onError,
   onSuccess,
@@ -29,6 +35,7 @@ export const handleSave = async ({
   draftSummary: string;
   finalSummary: string;
   selectedCanon?: SelectedCanonMeta | null;
+  selectedSubfolder?: SelectedSubfolderMeta | null;
   setIsSaving: (isSaving: boolean) => void;
   onError?: (message: string) => void;
   onSuccess?: (meta: {
@@ -55,6 +62,9 @@ export const handleSave = async ({
     // Include issuer canon metadata for markdown generation on the server
     if (selectedCanon) {
       formData.append("selectedCanon", JSON.stringify(selectedCanon));
+    }
+    if (selectedSubfolder) {
+      formData.append("selectedSubfolder", JSON.stringify(selectedSubfolder));
     }
 
     // 3. all captured images — server will rename to {setName}-pX.ext or similar

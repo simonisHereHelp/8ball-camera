@@ -29,12 +29,31 @@ function Content() {
   const [dialogSource, setDialogSource] = useState<"camera" | "photos" | null>(
     null,
   );
+  const [uploadConfirmation, setUploadConfirmation] = useState<{
+    folder: string;
+    filename: string;
+  } | null>(null);
   const isMobile = useIsMobile();
 
   const { data: session } = useSession();
 
   const handleOpen = (source: "camera" | "photos") => setDialogSource(source);
   const handleClose = () => setDialogSource(null);
+
+  useEffect(() => {
+    const raw = sessionStorage.getItem("uploadConfirmation");
+    if (!raw) return;
+    try {
+      const parsed = JSON.parse(raw) as { folder?: string; filename?: string };
+      if (parsed.folder && parsed.filename) {
+        setUploadConfirmation({ folder: parsed.folder, filename: parsed.filename });
+      }
+    } catch (error) {
+      console.warn("Unable to parse upload confirmation:", error);
+    } finally {
+      sessionStorage.removeItem("uploadConfirmation");
+    }
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
@@ -53,16 +72,16 @@ function Content() {
             {!session ? (
               <Button
                 onClick={() => signIn("google")}
-                className="mt-4 bg-green-600 hover:bg-green-700 text-white"
+                className="app-button mt-4"
               >
-                Login
+                <span className="app-button-label">Login</span>
               </Button>
             ) : (
               <Button
                 onClick={() => signOut()}
-                className="mt-4 bg-red-600 hover:bg-red-700 text-white"
+                className="app-button mt-4"
               >
-                Logout
+                <span className="app-button-label">Logout</span>
               </Button>
             )}
         </div>
@@ -75,24 +94,30 @@ function Content() {
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
                   <Button
                     onClick={() => handleOpen("camera")}
-                    className="h-12 bg-blue-600 hover:bg-blue-700 text-white !px-8 !py-3 text-lg font-medium rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 cursor-pointer"
+                    className="app-button h-12 !px-8 !py-3 text-lg font-medium rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 cursor-pointer"
                   >
                     <Camera className="w-5 h-5 mr-2" />
-                    Launch Camera
+                    <span className="app-button-label">Launch Camera</span>
                   </Button>
                   <Button
-                    variant="outline"
                     onClick={() => handleOpen("photos")}
-                    className="h-12 !px-8 !py-3 text-lg font-medium rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 cursor-pointer"
+                    className="app-button h-12 !px-8 !py-3 text-lg font-medium rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 cursor-pointer"
                   >
-                    Photo Album
+                    <span className="app-button-label">Photo Album</span>
                   </Button>
                 </div>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
-                  {isMobile
-                    ? "Mobile-optimized interface"
-                    : "Desktop-enhanced experience"}
-                </p>
+                {uploadConfirmation ? (
+                  <div className="text-sm text-slate-500 dark:text-slate-400 space-y-1">
+                    <p>upload to {uploadConfirmation.folder}</p>
+                    <p>filename: {uploadConfirmation.filename}</p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                    {isMobile
+                      ? "Mobile-optimized interface"
+                      : "Desktop-enhanced experience"}
+                  </p>
+                )}
               </div>
             </div>
           </div>

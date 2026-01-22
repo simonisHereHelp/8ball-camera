@@ -7,6 +7,13 @@ export interface Image {
   file: File;
 }
 
+export interface SubfolderOption {
+  topic: string;
+  folderId?: string;
+  keywords?: string[];
+  description?: string;
+}
+
 export interface State {
   images: Image[];
   facingMode: FacingMode;
@@ -18,8 +25,13 @@ export interface State {
   draftSummary: string;     // The original AI output
   editableSummary: string;  // What the user sees and edits
   summaryImageUrl: string | null;
+  showSummaryOverlay: boolean;
   error: string;
   saveMessage: string;
+  availableSubfolders: SubfolderOption[];
+  selectedSubfolder: SubfolderOption | null;
+  subfolderLoading: boolean;
+  subfolderError: string;
   issuerCanons: IssuerCanonEntry[];
   issuerCanonsLoading: boolean;
   canonError: string;
@@ -36,9 +48,13 @@ export interface Actions {
   handleClose: () => void;
   setCaptureSource: (source: "camera" | "photos") => void;
   setEditableSummary: (summary: string) => void;
+  setDraftSummary: (summary: string) => void;
   setShowGallery: (show: boolean) => void;
   setCameraError: (error: boolean) => void;
   setError: (message: string) => void;
+  setCanonError: (message: string) => void;
+  refreshSubfolders: () => Promise<void>;
+  selectSubfolder: (subfolder: SubfolderOption) => void;
   refreshCanons: () => Promise<void>;
   selectCanon: (canon: IssuerCanonEntry) => void;
 }
@@ -46,5 +62,5 @@ export interface Actions {
 export interface CameraViewProps {
   state: State;
   actions: Actions;
-  cameraRef: React.RefObject<WebCameraHandler>;
+  cameraRef: React.RefObject<WebCameraHandler | null>;
 }

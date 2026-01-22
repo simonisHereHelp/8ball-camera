@@ -31,7 +31,7 @@ export function ImageCaptureDialogDesktop({
   const [facingMode, setFacingMode] = useState<FacingMode>("environment");
   const [cameraError, setCameraError] = useState(false);
 
-  const cameraRef = useRef<WebCameraHandler>(null);
+  const cameraRef = useRef<WebCameraHandler | null>(null);
 
   /**
    * Removes an image from the gallery based on its index.
@@ -157,20 +157,19 @@ export function ImageCaptureDialogDesktop({
                   onClick={handleCapture}
                   disabled={isSaving}
                   aria-label="Capture image"
-                  className="w-16 h-16 rounded-full bg-white hover:bg-slate-100 border-4 border-slate-200 shadow-xl transition-all duration-200 hover:scale-105 cursor-pointer"
+                  className="app-button w-16 h-16 rounded-full border-4 border-white/50 shadow-xl transition-all duration-200 hover:scale-105 cursor-pointer"
                 >
-                  <Camera className="w-6 h-6 text-slate-700" />
+                  <Camera className="w-6 h-6" />
                 </Button>
                 <Button
-                  variant="outline"
                   size="icon"
                   onClick={handleCameraSwitch}
                   disabled={isSaving}
                   aria-label="Switch camera"
-                  className="w-12 h-12 bg-white/90 hover:bg-white backdrop-blur-sm border-slate-200 shadow-lg cursor-pointer"
+                  className="app-button w-12 h-12 shadow-lg cursor-pointer"
                 >
                   <RefreshCcw
-                    className={`w-4 h-4 text-slate-700 transition-transform duration-300 ${
+                    className={`w-4 h-4 transition-transform duration-300 ${
                       facingMode === "user" ? "rotate-180" : "rotate-0"
                     }`}
                   />
@@ -215,7 +214,7 @@ export function ImageCaptureDialogDesktop({
                       <button
                         onClick={() => deleteImage(index)}
                         aria-label={`Delete image ${index + 1}`}
-                        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 shadow-lg cursor-pointer"
+                        className="app-button absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 shadow-lg cursor-pointer"
                       >
                         <X className="w-2 h-2 sm:w-3 sm:h-3" />
                       </button>
@@ -228,28 +227,26 @@ export function ImageCaptureDialogDesktop({
             {/* footer buttons */}
             <div className="sticky bottom-0 bg-white p-3 sm:p-4 border-t border-slate-200 flex gap-2 flex-none">
               <Button
-                variant="outline"
                 onClick={handleClose}
                 disabled={isSaving}
-                className="flex-1 border-slate-300 text-slate-700 hover:bg-slate-50 font-medium bg-transparent cursor-pointer"
+                className="app-button flex-1 cursor-pointer"
               >
-                Cancel
+                <span className="app-button-label">Cancel</span>
               </Button>
               <Button
                 onClick={handleSave}
                 disabled={images.length === 0 || isSaving}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm sm:text-base py-2 sm:py-3 cursor-pointer"
+                className="app-button flex-1 text-sm sm:text-base py-2 sm:py-3 cursor-pointer"
               >
                 {isSaving ? (
                   <>
                     <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 mr-2 animate-spin" />
-                    Saving...
+                    <span className="app-button-label">Saving...</span>
                   </>
                 ) : (
-                  <>
-                    Save
-                    {images.length > 0 && `(${images.length})`}
-                  </>
+                  <span className="app-button-label">
+                    Save{images.length > 0 ? ` (${images.length})` : ""}
+                  </span>
                 )}
               </Button>
             </div>
