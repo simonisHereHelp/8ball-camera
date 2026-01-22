@@ -53,6 +53,38 @@ export function GalleryView({ state, actions }: { state: State; actions: Actions
                 ))}
               </div>
             </div>
+
+            {/* Target Subfolder Selection */}
+            <div className="p-3 bg-white/5 rounded-lg border border-white/10">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-xs font-bold text-blue-300">TARGET SUBFOLDER</span>
+                <button onClick={actions.refreshSubfolders} className="text-white/50">
+                  <RefreshCw size={14} className={state.subfolderLoading ? "animate-spin" : ""} />
+                </button>
+              </div>
+              {state.subfolderError && (
+                <p className="text-[10px] text-red-300 mb-2">{state.subfolderError}</p>
+              )}
+              <div className="flex flex-wrap gap-2">
+                {state.availableSubfolders.length === 0 && !state.subfolderLoading ? (
+                  <span className="text-[10px] text-white/60">No subfolders configured.</span>
+                ) : (
+                  state.availableSubfolders.map((subfolder) => (
+                    <button
+                      key={subfolder.topic}
+                      onClick={() => actions.selectSubfolder(subfolder)}
+                      className={`text-[10px] px-3 py-1 rounded-full border transition ${
+                        state.selectedSubfolder?.topic === subfolder.topic
+                          ? "bg-blue-600 border-blue-400"
+                          : "border-white/20 text-white/70"
+                      }`}
+                    >
+                      {subfolder.topic}
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
           </div>
         )}
       </div>

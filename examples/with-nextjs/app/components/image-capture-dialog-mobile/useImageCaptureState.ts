@@ -11,7 +11,7 @@ import {
   DEFAULTS,
   normalizeCapture,
 } from "../shared/normalizeCapture";
-import type { Image, State, Actions } from "./types";
+import type { Image, State, Actions, SubfolderOption } from "./types";
 import {
   applyCanonToSummary,
   fetchIssuerCanonList,
@@ -22,7 +22,7 @@ import { playSuccessChime } from "./soundEffects";
 interface UseImageCaptureState {
   state: State;
   actions: Actions;
-  cameraRef: React.RefObject<WebCameraHandler>;
+  cameraRef: React.RefObject<WebCameraHandler | null>;
 }
 
 export const useImageCaptureState = (
@@ -47,6 +47,10 @@ export const useImageCaptureState = (
   // --- UI Feedback State ---
   const [error, setError] = useState("");
   const [saveMessage, setSaveMessage] = useState("");
+  const [availableSubfolders, setAvailableSubfolders] = useState<SubfolderOption[]>([]);
+  const [selectedSubfolder, setSelectedSubfolder] = useState<SubfolderOption | null>(null);
+  const [subfolderLoading, setSubfolderLoading] = useState(false);
+  const [subfolderError, setSubfolderError] = useState("");
 
   // --- Canon / Metadata State ---
   const [issuerCanons, setIssuerCanons] = useState<IssuerCanonEntry[]>([]);
@@ -54,7 +58,7 @@ export const useImageCaptureState = (
   const [canonError, setCanonError] = useState("");
   const [selectedCanon, setSelectedCanon] = useState<IssuerCanonEntry | null>(null);
 
-  const cameraRef = useRef<WebCameraHandler>(null);
+  const cameraRef = useRef<WebCameraHandler | null>(null);
   const { data: session } = useSession();
 
   // Keep capture source in sync with props
@@ -83,6 +87,9 @@ export const useImageCaptureState = (
     setSaveMessage("");
     setShowSummaryOverlay(false);
     setShowGallery(false);
+    setAvailableSubfolders([]);
+    setSelectedSubfolder(null);
+    setSubfolderError("");
     setIssuerCanons([]);
     setCanonError("");
     setSelectedCanon(null);
@@ -177,6 +184,30 @@ export const useImageCaptureState = (
     }
   }, [issuerCanonsLoading]);
 
+  const refreshSubfolders = useCallback(async () => {
+    if (subfolderLoading) return;
+    setSubfolderLoading(true);
+    setSubfolderError("");
+    try {
+      const response = await fetch("/api/active-subfolders");
+      if (!response.ok) {
+        throw new Error("Unable to load subfolder options.");
+      }
+      const json = (await response.json().catch(() => null)) as
+        | { subfolders?: SubfolderOption[] }
+        | null;
+      setAvailableSubfolders(json?.subfolders ?? []);
+    } catch (err) {
+      setSubfolderError(err instanceof Error ? err.message : "Unable to load subfolder options.");
+    } finally {
+      setSubfolderLoading(false);
+    }
+  }, [subfolderLoading]);
+
+  const selectSubfolder = useCallback((subfolder: SubfolderOption) => {
+    setSelectedSubfolder(subfolder);
+  }, []);
+
   const selectCanon = useCallback((canon: IssuerCanonEntry) => {
     setSelectedCanon(canon);
     setEditableSummary((current) =>
@@ -195,6 +226,12 @@ export const useImageCaptureState = (
     }
   }, [showGallery, issuerCanons.length, issuerCanonsLoading, refreshCanons]);
 
+  useEffect(() => {
+    if (showGallery && !availableSubfolders.length && !subfolderLoading) {
+      refreshSubfolders();
+    }
+  }, [showGallery, availableSubfolders.length, subfolderLoading, refreshSubfolders]);
+
   const handleSaveImages = useCallback(async () => {
     if (!session || isSaving) return;
     
@@ -212,6 +249,7 @@ export const useImageCaptureState = (
       draftSummary,
       finalSummary,
       selectedCanon,
+      selectedSubfolder,
       setIsSaving,
       onError: setError,
       onSuccess: ({ setName, targetFolderId, topic }) => {
@@ -228,7 +266,15 @@ export const useImageCaptureState = (
         playSuccessChime();
       },
     });
-  }, [session, isSaving, images, draftSummary, editableSummary, selectedCanon]);
+  }, [
+    session,
+    isSaving,
+    images,
+    draftSummary,
+    editableSummary,
+    selectedCanon,
+    selectedSubfolder,
+  ]);
 
   // --- Aggregate State & Actions ---
 
@@ -245,6 +291,10 @@ export const useImageCaptureState = (
     summaryImageUrl,
     error,
     saveMessage,
+    availableSubfolders,
+    selectedSubfolder,
+    subfolderLoading,
+    subfolderError,
     showSummaryOverlay,
     issuerCanons,
     issuerCanonsLoading,
@@ -267,6 +317,8 @@ export const useImageCaptureState = (
     setCameraError,
     setError,
     setCanonError,
+    refreshSubfolders,
+    selectSubfolder,
     refreshCanons,
     selectCanon,
   };
