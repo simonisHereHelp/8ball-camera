@@ -3,6 +3,7 @@
 import { useRef, useState, useCallback, useEffect } from "react";
 import type { WebCameraHandler, FacingMode } from "@shivantra/react-web-camera";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { handleSave } from "@/lib/handleSave";
 import { handleSummary } from "@/lib/handleSummary";
 import { normalizeFilename } from "@/lib/normalizeFilename";
@@ -60,6 +61,7 @@ export const useImageCaptureState = (
 
   const cameraRef = useRef<WebCameraHandler | null>(null);
   const { data: session } = useSession();
+  const router = useRouter();
 
   // Keep capture source in sync with props
   useEffect(() => {
@@ -258,12 +260,19 @@ export const useImageCaptureState = (
         const displayPath = folderPath.replace(/^Drive_/, "");
         const resolvedName = normalizeFilename(setName || "(untitled)");
         
+        sessionStorage.setItem(
+          "uploadConfirmation",
+          JSON.stringify({ folder: displayPath, filename: resolvedName }),
+        );
         setSaveMessage(`uploaded to: ${displayPath} ✅\nname: ${resolvedName} ✅`);
         setImages([]);
         setDraftSummary("");
         setEditableSummary("");
         setSelectedCanon(null);
+        setSelectedSubfolder(null);
         playSuccessChime();
+        onOpenChange?.(false);
+        router.push("/");
       },
     });
   }, [
@@ -274,6 +283,8 @@ export const useImageCaptureState = (
     editableSummary,
     selectedCanon,
     selectedSubfolder,
+    onOpenChange,
+    router,
   ]);
 
   // --- Aggregate State & Actions ---
