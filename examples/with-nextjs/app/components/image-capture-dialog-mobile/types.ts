@@ -46,5 +46,5 @@ export interface Actions {
 export interface CameraViewProps {
   state: State;
   actions: Actions;
-  cameraRef: React.RefObject<WebCameraHandler>;
+  cameraRef: React.RefObject<WebCameraHandler | null>;
 }

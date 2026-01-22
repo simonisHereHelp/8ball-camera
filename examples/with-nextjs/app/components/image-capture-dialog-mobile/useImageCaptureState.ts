@@ -22,7 +22,7 @@ import { playSuccessChime } from "./soundEffects";
 interface UseImageCaptureState {
   state: State;
   actions: Actions;
-  cameraRef: React.RefObject<WebCameraHandler>;
+  cameraRef: React.RefObject<WebCameraHandler | null>;
 }
 
 export const useImageCaptureState = (
@@ -54,7 +54,7 @@ export const useImageCaptureState = (
   const [canonError, setCanonError] = useState("");
   const [selectedCanon, setSelectedCanon] = useState<IssuerCanonEntry | null>(null);
 
-  const cameraRef = useRef<WebCameraHandler>(null);
+  const cameraRef = useRef<WebCameraHandler | null>(null);
   const { data: session } = useSession();
 
   // Keep capture source in sync with props
