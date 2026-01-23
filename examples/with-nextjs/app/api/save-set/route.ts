@@ -27,15 +27,33 @@ const buildFolderPath = (slugOrPath: string, base: string) => {
   return `${base}/${slugOrPath}`;
 };
 
+const mimeTypeByExtension: Record<string, string> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+};
+
+const resolveExtension = (fileName: string, fallback: string) => {
+  const extension = fileName.split(".").pop()?.toLowerCase();
+  return extension && extension.length ? extension : fallback;
+};
+
+const resolveMimeType = (file: File, fallbackExtension: string) => {
+  if (file.type) return file.type;
+  const extension = resolveExtension(file.name, fallbackExtension);
+  return mimeTypeByExtension[extension] ?? "application/octet-stream";
+};
+
 function buildMarkdown(params: {
   setName: string;
   summary: string;
-  pageCount: number;
+  imageFiles: File[];
 }) {
-  const { setName, summary, pageCount } = params;
-  const images = Array.from({ length: Math.max(pageCount, 0) }).map((_, idx) => {
+  const { setName, summary, imageFiles } = params;
+  const images = imageFiles.map((file, idx) => {
     const pageNumber = idx + 1;
-    return `![${setName}-p${pageNumber}](./${setName}-p${pageNumber}.jpeg)`;
+    const extension = resolveExtension(file.name, "jpeg");
+    return `![${setName}-p${pageNumber}](./${setName}-p${pageNumber}.${extension})`;
   });
 
   return `# ${setName}
@@ -177,7 +195,7 @@ export async function POST(request: Request) {
     const markdown = buildMarkdown({
       setName: normalizedSetName,
       summary,
-      pageCount: imageFiles.length,
+      imageFiles,
     });
 
     const summaryFile = new File([markdown], "summary.md", { type: "text/markdown" });
@@ -190,7 +208,7 @@ export async function POST(request: Request) {
         const baseName = normalizeFilename(
           normalizedSetName.replace(/[\\/:*?"<>|]/g, "_"),
         );
-        const extension = file.name.split(".").pop();
+        const extension = resolveExtension(file.name, "dat");
 
         const fileName = normalizeFilename(
           file === summaryFile || file.name === "summary.md"
@@ -201,7 +219,7 @@ export async function POST(request: Request) {
         return {
           name: fileName,
           buffer: Buffer.from(await file.arrayBuffer()),
-          mimeType: file.type,
+          mimeType: resolveMimeType(file, extension),
         };
       },
     });
