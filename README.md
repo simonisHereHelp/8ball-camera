@@ -1,4 +1,9 @@
-# Prompt & Canon Sources (Next.js 14 uploader)
+# milestone:
+-load DriveActiveSubfolder
+-Webcam or Photo
+-upload success (correct mime type for multiparts)
+
+# Prompt & Canon Sources
 
 This project reads JSON configs from the `json_canon/` folder by default (overridable via env paths/IDs). They drive summarization, file naming, canonical updates, and now subfolder routing for saves.
 
