@@ -58,10 +58,15 @@ export async function driveSaveFiles(params: {
   for (const file of files) {
     const { name, buffer, mimeType } = await fileToUpload(file);
     const normalizedName = normalizeFilename(name);
+    const resolvedMimeType = mimeType || "application/octet-stream";
 
     const boundary = "drive-boundary-" + Date.now() + Math.random().toString(16);
-    const metadata = { name: normalizedName, parents: [resolvedFolderId] };
-    const body = buildMultipartBody(boundary, metadata, buffer, mimeType);
+    const metadata = {
+      name: normalizedName,
+      parents: [resolvedFolderId],
+      mimeType: resolvedMimeType,
+    };
+    const body = buildMultipartBody(boundary, metadata, buffer, resolvedMimeType);
 
     const res = await fetch(DRIVE_UPLOAD_URL, {
       method: "POST",
