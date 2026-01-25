@@ -7,6 +7,41 @@ export interface Image {
   file: File;
 }
 
+const extensionFromFile = (file: File) => {
+  const nameExtension = file.name.split(".").pop()?.toLowerCase();
+  if (nameExtension) return nameExtension;
+
+  if (file.type === "image/png") return "png";
+  if (file.type === "image/jpeg") return "jpg";
+
+  return "jpg";
+};
+
+const buildSummaryTemplate = (images: Image[]) => {
+  const assets =
+    images.length > 0
+      ? images
+          .map((image, index) => {
+            const page = index + 1;
+            const extension = extensionFromFile(image.file);
+            return `- [ ] ./{{setName}}-p${page}.${extension}`;
+          })
+          .join("\n")
+      : "- [ ] ./{{setName}}-p1.jpg";
+
+  return `### Draft Summary
+- Title: 
+- Issuer: 
+- Date: 
+
+### Notes
+- 
+
+### Assets
+${assets}
+`;
+};
+
 /**
  * Uploads the latest image to /api/summarize and shows
  * the first 800 characters of the returned summary.
@@ -29,6 +64,8 @@ export const handleSummary = async ({
   setError: (message: string) => void;
 }): Promise<boolean> => {
   if (images.length === 0) return false;
+
+  const fallbackSummary = buildSummaryTemplate(images);
 
   setIsSaving(true);
   setError("");
@@ -61,20 +98,21 @@ export const handleSummary = async ({
 
     // First 800 characters only
     const summaryText = (data.summary || "").slice(0, 800);
+    const resolvedSummary = summaryText.trim().length ? summaryText : fallbackSummary;
 
     // Call the custom setter, which will update both draftSummary and editableSummary
-    setSummary(summaryText);
+    setSummary(resolvedSummary);
     setSummaryImageUrl(images[images.length - 1].url);
     setShowSummaryOverlay(true);
     playSuccessChime();
     return true;
   } catch (error) {
     console.error("Failed to summarize image:", error);
-    setSummary("");
+    setSummary(fallbackSummary);
     setSummaryImageUrl(null);
-    setError("Unable to summarize the captured image. Please try again.");
+    setError("Unable to summarize the captured image. Please edit the template summary.");
     setShowSummaryOverlay(false);
-    return false;
+    return true;
   } finally {
     setIsSaving(false);
   }
