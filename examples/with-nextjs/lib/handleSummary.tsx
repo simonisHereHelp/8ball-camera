@@ -30,12 +30,10 @@ const buildSummaryTemplate = (images: Image[]) => {
       : "- [ ] ./{{setName}}-p1.jpg";
 
   return `### Draft Summary
-- Title: 
-- Issuer: 
-- Date: 
-
-### Notes
-- 
+單位：
+類型：
+行動：
+内容摘要：
 
 ### Assets
 ${assets}
